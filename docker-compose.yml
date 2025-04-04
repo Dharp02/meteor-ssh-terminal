@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  debian-ssh:
+    image: debian:latest
+    container_name: my_debian_ssh
+    restart: unless-stopped
+    ports:
+      - "2222:22"  # Map container SSH port (22) to host port 2222
+    privileged: true  # Needed to run SSH properly inside the container
+    command: >
+      bash -c "apt update &&
+      apt install -y openssh-server &&
+      mkdir -p /run/sshd &&
+      echo 'root:rootpassword' | chpasswd &&
+      sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config &&
+      sed -i 's/UsePAM yes/UsePAM no/' /etc/ssh/sshd_config &&
+      echo 'PermitEmptyPasswords no' >> /etc/ssh/sshd_config &&
+      echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config &&
+      service ssh restart &&
+      exec /usr/sbin/sshd -D"

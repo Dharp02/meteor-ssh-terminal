@@ -1,0 +1,70 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "allowJs": true,
+    "jsx": "react",
+    "baseUrl": ".",
+    "paths": {
+      "/*": [
+        "./*"
+      ],
+      "meteor/mongo": [
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/local_collection_driver.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/collection/collection.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/asynchronous_cursor.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/doc_fetcher.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/mongo_common.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/mongo_connection.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/mongo_driver.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/mongo_utils.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/oplog_observe_driver.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/collection/collection_utils.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/collection/methods_async.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/collection/methods_index.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/collection/methods_replication.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/mongo/2.1.0/web.browser/collection/methods_sync.js"
+      ],
+      "meteor/reactive-var": [
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/reactive-var/1.0.13/web.browser/reactive-var.js"
+      ],
+      "meteor/es5-shim": [
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/es5-shim/4.8.1/web.browser/client.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/es5-shim/4.8.1/web.browser/console.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/es5-shim/4.8.1/web.browser/cordova.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/es5-shim/4.8.1/web.browser/export_globals.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/es5-shim/4.8.1/web.browser/import_globals.js"
+      ],
+      "meteor/ecmascript": [
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/ecmascript/0.16.10/web.browser/ecmascript.js"
+      ],
+      "meteor/shell-server": [
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/shell-server/0.6.1/web.browser/main.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/shell-server/0.6.1/web.browser/shell-server.js"
+      ],
+      "meteor/hot-module-replacement": [
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/hot-module-replacement/0.5.4/web.browser/hot-api.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/hot-module-replacement/0.5.4/web.browser/client.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/hot-module-replacement/0.5.4/web.browser/server.js"
+      ],
+      "meteor/react-meteor-data": [
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/react-meteor-data/3.0.3/web.browser/index.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/react-meteor-data/3.0.3/web.browser/suspense/index.js"
+      ],
+      "meteor/webapp": [
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/webapp/2.0.5/web.browser/webapp_client.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/webapp/2.0.5/web.browser/socket_file.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/webapp/2.0.5/web.browser/webapp_cordova.js",
+        "C:\\Users\\dhara\\AppData\\Local/.meteor/packages/webapp/2.0.5/web.browser/webapp_server.js"
+      ]
+    }
+  },
+  "typeAcquisition": {
+    "include": [
+      "meteor"
+    ]
+  },
+  "exclude": [
+    "node_modules",
+    ".meteor"
+  ]
+}
