@@ -1,6 +1,6 @@
 // TerminalComponent.jsx
 import React, { useState } from 'react';
-import TerminalInstance from '../imports/ui/components/TerminalInstance';
+import TerminalInstance from '/imports/ui/components/TerminalInstance.jsx';
 import './main.css';
 
 const TerminalComponent = () => {
@@ -12,6 +12,7 @@ const TerminalComponent = () => {
     const newTab = {
       id,
       title: `Terminal ${terminals.length + 1}`,
+      isEditing: false
     };
     setTerminals(prev => [...prev, newTab]);
     setActiveTab(id);
@@ -20,35 +21,63 @@ const TerminalComponent = () => {
   const closeTab = (id) => {
     setTerminals(prev => prev.filter(tab => tab.id !== id));
     if (activeTab === id && terminals.length > 1) {
-      const otherTab = terminals.find(tab => tab.id !== id);
-      setActiveTab(otherTab?.id || null);
-    } else if (terminals.length === 1) {
-      setActiveTab(null);
+      const fallback = terminals.find(tab => tab.id !== id);
+      if (fallback) setActiveTab(fallback.id);
     }
   };
 
+  const renameTab = (id, newTitle) => {
+    setTerminals(prev => prev.map(tab => tab.id === id ? { ...tab, title: newTitle } : tab));
+  };
+
+  const finishEditing = (id) => {
+    setTerminals(prev => prev.map(tab => tab.id === id ? { ...tab, isEditing: false } : tab));
+  };
+
+  const startEditing = (id) => {
+    setTerminals(prev => prev.map(tab => tab.id === id ? { ...tab, isEditing: true } : tab));
+  };
+
   return (
-    <div className="terminal-page">
-      <div className="tabs-bar">
+    <div>
+      <div className="tab-bar">
         {terminals.map(tab => (
-          <button
+          <div
             key={tab.id}
-            className={`tab-btn ${tab.id === activeTab ? 'active' : ''}`}
+            className={`tab ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
-            {tab.title}
-            <span className="close-btn" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}>&times;</span>
-          </button>
+            {tab.isEditing ? (
+              <input
+                type="text"
+                className="tab-rename-input"
+                defaultValue={tab.title}
+                ref={(input) => { if (input) input.focus(); }}
+                onBlur={(e) => {
+                  renameTab(tab.id, e.target.value);
+                  finishEditing(tab.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    renameTab(tab.id, e.target.value);
+                    finishEditing(tab.id);
+                  }
+                }}
+              />
+            ) : (
+              <span onDoubleClick={() => startEditing(tab.id)}>{tab.title}</span>
+            )}
+            <button className="close-btn" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}>×</button>
+          </div>
         ))}
-        <button className="tab-btn add-tab" onClick={createNewTerminalTab}>+</button>
+        <button className="add-tab" onClick={createNewTerminalTab}>+</button>
       </div>
-      <div className="terminal-container">
-        {terminals.map(tab => (
-          tab.id === activeTab ? (
-            <TerminalInstance key={tab.id} tabId={tab.id} />
-          ) : null
-        ))}
-      </div>
+
+      {terminals.map(tab => (
+        <div key={tab.id} style={{ display: activeTab === tab.id ? 'block' : 'none' }}>
+          <TerminalInstance tabId={tab.id} label={tab.title} onRename={(newTitle) => renameTab(tab.id, newTitle)} />
+        </div>
+      ))}
     </div>
   );
 };

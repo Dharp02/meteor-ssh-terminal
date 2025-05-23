@@ -5,16 +5,27 @@ import { Server } from 'socket.io';
 import { Client } from 'ssh2';
 import { SessionLogs } from '../imports/api/sessions';
 import Docker from 'dockerode';
+import bodyParser from 'body-parser';
+WebApp.connectHandlers.use(bodyParser.json());
+
 
 const docker = new Docker({ host: 'localhost', port: 2375 });
 let io;
 const terminalSessions = new Map();
 
 Meteor.startup(() => {
-  if (!WebApp.httpServer) {
-    console.error('WebApp.httpServer is not available!');
-    return;
-  }
+  WebApp.connectHandlers.use(bodyParser.json());
+
+  WebApp.connectHandlers.use('/api/active-containers', (req, res) => {
+    const active = Array.from(terminalSessions.entries()).map(([socketId, session]) => ({
+      socketId,
+      containerId: session.containerId,
+      sessionId: session.sessionId,
+      startedAt: session.sessionStartTime
+    }));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(active));
+  });
 
   io = new Server(WebApp.httpServer, {
     cors: { origin: '*', methods: ['GET', 'POST'] }
@@ -36,24 +47,43 @@ Meteor.startup(() => {
     });
 
     await container.start();
-    await new Promise(resolve => setTimeout(resolve, 300)); // Allow Docker to update port mapping
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     const data = await container.inspect();
-    console.log("🔍 Port Mapping:", JSON.stringify(data.NetworkSettings.Ports, null, 2));
-
     const mapped = data?.NetworkSettings?.Ports?.['22/tcp'];
     if (!mapped || !mapped[0] || !mapped[0].HostPort) {
-      throw new Error('❌ Could not retrieve mapped HostPort for SSH container.');
+      throw new Error(' Could not retrieve mapped HostPort for SSH container.');
     }
-
-    const port = mapped[0].HostPort;
 
     return {
       id: container.id,
       name: containerName,
       host: 'localhost',
-      port
+      port: mapped[0].HostPort
     };
+  }
+
+  function startAutoExpiry(socketId, durationMs = 10 * 60 * 1000) {
+    const session = terminalSessions.get(socketId);
+    if (!session) return;
+
+    if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
+
+    session.expiryTimeout = setTimeout(async () => {
+      if (terminalSessions.has(socketId)) {
+        const { conn, containerId } = terminalSessions.get(socketId);
+        try {
+          const container = docker.getContainer(containerId);
+          await container.stop();
+          await container.remove();
+        } catch (err) {
+          console.error('Auto-expiry cleanup error:', err);
+        }
+        conn.end();
+        terminalSessions.delete(socketId);
+        console.log(` Auto-expired and removed session ${socketId}`);
+      }
+    }, durationMs);
   }
 
   io.on('connection', (socket) => {
@@ -85,7 +115,6 @@ Meteor.startup(() => {
       }
 
       conn.on('ready', () => {
-        console.log(`SSH Connection established for ${socket.id}`);
         SessionLogs.updateAsync(sessionId, { $set: { status: 'connected' } }).catch(console.error);
         socket.emit('sshConnected');
 
@@ -96,49 +125,53 @@ Meteor.startup(() => {
             return;
           }
 
-          terminalSessions.set(socket.id, { conn, stream, sessionId, sessionStartTime, containerId: containerInfo.id, cleanedUp: false });
+          terminalSessions.set(socket.id, {
+            conn,
+            stream,
+            sessionId,
+            sessionStartTime,
+            containerId: containerInfo.id,
+            cleanedUp: false
+          });
+
+          startAutoExpiry(socket.id);
 
           stream.on('data', (data) => {
             const dataStr = data.toString();
             socket.emit('output', dataStr);
             if (sessionLog.length > 1000) sessionLog.shift();
             sessionLog.push({ type: 'output', data: dataStr, timestamp: new Date() });
+            startAutoExpiry(socket.id); // reset timer on activity
           });
 
           stream.stderr.on('data', (data) => {
             const errorStr = data.toString();
             socket.emit('output', `\x1b[31m${errorStr}\x1b[0m`);
             sessionLog.push({ type: 'error', data: errorStr, timestamp: new Date() });
+            startAutoExpiry(socket.id); // reset timer on error output
           });
 
           stream.on('close', async () => {
-            console.log(`SSH Stream closed for ${socket.id}`);
             socket.emit('output', '\r\n\x1b[33mSSH Connection closed.\x1b[0m\r\n');
             const endTime = new Date();
             const durationInSeconds = Math.floor((endTime.getTime() - sessionStartTime.getTime()) / 1000);
-
             await SessionLogs.updateAsync(sessionId, {
-              $set: {
-                status: 'closed',
-                endTime: endTime,
-                duration: durationInSeconds,
-                logSummary: sessionLog.slice(-50)
-              }
+              $set: { status: 'closed', endTime, duration: durationInSeconds, logSummary: sessionLog.slice(-50) }
             }).catch(console.error);
 
             const session = terminalSessions.get(socket.id);
             if (session && !session.cleanedUp) {
               session.cleanedUp = true;
+              if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
               try {
                 const container = docker.getContainer(session.containerId);
                 await container.stop();
                 await container.remove();
               } catch (err) {
-                console.error(`⚠️ Cleanup error for container ${session.containerId}:`, err.message);
+                console.error(`Cleanup error:`, err);
               }
             }
-
-            if (terminalSessions.has(socket.id)) terminalSessions.delete(socket.id);
+            terminalSessions.delete(socket.id);
             conn.end();
           });
 
@@ -146,9 +179,7 @@ Meteor.startup(() => {
           socket.on('input', (data) => {
             if (terminalSessions.has(socket.id)) {
               terminalSessions.get(socket.id).stream.write(data);
-              if (data === '\r' || data === '\n' || data === '\r\n') {
-                sessionLog.push({ type: 'input', data: 'Command executed', timestamp: new Date() });
-              }
+              startAutoExpiry(socket.id); // reset on user input
             }
           });
         });
@@ -170,7 +201,6 @@ Meteor.startup(() => {
           readyTimeout: 30000,
           keepaliveInterval: 30000
         };
-
         if (credentials.useKeyAuth && credentials.privateKey) {
           connectionOptions.privateKey = credentials.privateKey;
           if (credentials.passphrase) {
@@ -181,7 +211,6 @@ Meteor.startup(() => {
         } else {
           throw new Error('No authentication method provided');
         }
-
         conn.connect(connectionOptions);
       } catch (error) {
         console.error(`SSH Connection Error for ${socket.id}:`, error);
@@ -196,12 +225,13 @@ Meteor.startup(() => {
       const session = terminalSessions.get(socket.id);
       if (session && !session.cleanedUp) {
         session.cleanedUp = true;
+        if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
         try {
           const container = docker.getContainer(session.containerId);
           await container.stop();
           await container.remove();
         } catch (err) {
-          console.error(` Cleanup error for container ${session.containerId}:`, err.message);
+          console.error(`Cleanup error:`, err);
         }
       }
       terminalSessions.delete(socket.id);
@@ -209,16 +239,16 @@ Meteor.startup(() => {
     });
 
     socket.on('disconnect', async () => {
-      console.log(`Client disconnected: ${socket.id}`);
       const session = terminalSessions.get(socket.id);
       if (session && !session.cleanedUp) {
         session.cleanedUp = true;
+        if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
         try {
           const container = docker.getContainer(session.containerId);
           await container.stop();
           await container.remove();
         } catch (err) {
-          console.error(` Cleanup error for container ${session.containerId}:`, err.message);
+          console.error(`Cleanup error:`, err);
         }
       }
       terminalSessions.delete(socket.id);

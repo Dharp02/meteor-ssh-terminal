@@ -5,16 +5,16 @@ import { FitAddon } from 'xterm-addon-fit';
 import io from 'socket.io-client';
 import 'xterm/css/xterm.css';
 
-const TerminalInstance = ({ tabId }) => {
+const TerminalInstance = ({ tabId, label, onRename }) => {
   const terminalRef = useRef(null);
   const term = useRef(null);
   const fitAddon = useRef(new FitAddon());
   const socket = useRef(null);
 
   const [serverInfo, setServerInfo] = useState({
-    host: '',
+    host: 'localhost',
     port: 22,
-    username: '',
+    username: 'root',
     password: '',
     useKeyAuth: false,
     privateKey: '',
@@ -25,6 +25,7 @@ const TerminalInstance = ({ tabId }) => {
     term.current = new Terminal({
       fontSize: 14,
       cursorBlink: true,
+      disableStdin: false,
       scrollback: 5000,
       theme: { background: '#1e1e1e', foreground: '#ffffff' }
     });
@@ -32,6 +33,7 @@ const TerminalInstance = ({ tabId }) => {
     term.current.loadAddon(fitAddon.current);
     term.current.open(terminalRef.current);
     fitAddon.current.fit();
+    term.current.focus();
 
     term.current.writeln('New Terminal Instance');
 
