@@ -11,7 +11,7 @@ const TerminalInstance = ({ tabId }) => {
   const socket = useRef(null);
 
   const [remainingTime, setRemainingTime] = useState(null);
-  const [sessionLog, setSessionLog] = useState([]);
+
   const [serverInfo, setServerInfo] = useState({
     host: 'localhost',
     port: 22,
@@ -45,7 +45,6 @@ const TerminalInstance = ({ tabId }) => {
 
     socket.current.on('output', data => {
       term.current.write(data);
-      setSessionLog(prev => [...prev, data]);
     });
 
     socket.current.on('sshConnected', (data) => {
@@ -58,7 +57,6 @@ const TerminalInstance = ({ tabId }) => {
 
     term.current.onData(data => {
       socket.current.emit('input', data);
-      setSessionLog(prev => [...prev, data]);
     });
 
     return () => {
@@ -68,6 +66,7 @@ const TerminalInstance = ({ tabId }) => {
     };
   }, [tabId]);
 
+  // Countdown timer
   useEffect(() => {
     if (remainingTime === null) return;
     const timer = setInterval(() => {
@@ -87,6 +86,7 @@ const TerminalInstance = ({ tabId }) => {
 
   const connectSSH = () => {
     const port = serverInfo.port || 22;
+
     term.current.writeln(`\x1b[33mConnecting to ${serverInfo.host}:${port} as ${serverInfo.username}...\x1b[0m`);
     socket.current.emit('startSession', {
       host: serverInfo.host,
@@ -99,12 +99,10 @@ const TerminalInstance = ({ tabId }) => {
     });
   };
 
-  const downloadLog = () => {
-    const blob = new Blob([sessionLog.join('')], { type: 'text/plain' });
-    const link = document.createElement('a');
-    link.download = `terminal-session-${new Date().toISOString()}.txt`;
-    link.href = window.URL.createObjectURL(blob);
-    link.click();
+  const clearTerminal = () => {
+    if (term.current) {
+      term.current.clear();
+    }
   };
 
   return (
@@ -125,7 +123,7 @@ const TerminalInstance = ({ tabId }) => {
           </>
         )}
         <button onClick={connectSSH}>Connect</button>
-        <button onClick={downloadLog} style={{ marginLeft: '10px' }}>Download Session</button>
+        <button onClick={clearTerminal} style={{ marginLeft: '8px' }}>Clear</button>
       </div>
 
       <div
