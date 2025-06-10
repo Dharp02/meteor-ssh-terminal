@@ -5,6 +5,7 @@ import TerminalComponent from './TerminalComponent';
 import './main.css';
 import './terminal.css';
 
+
 // Wait for the DOM to be ready
 Meteor.startup(() => {
   // Get the target DOM element

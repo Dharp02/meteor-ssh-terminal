@@ -9,8 +9,8 @@ const TerminalInstance = ({ tabId }) => {
   const term = useRef(null);
   const fitAddon = useRef(new FitAddon());
   const socket = useRef(null);
-
   const [remainingTime, setRemainingTime] = useState(null);
+  const [logData, setLogData] = useState('');
 
   const [serverInfo, setServerInfo] = useState({
     host: 'localhost',
@@ -33,9 +33,22 @@ const TerminalInstance = ({ tabId }) => {
 
     term.current.loadAddon(fitAddon.current);
     term.current.open(terminalRef.current);
-    fitAddon.current.fit();
     term.current.focus();
     term.current.writeln('New Terminal Instance');
+
+    const resizeObserver = new ResizeObserver(() => {
+      try {
+        if (terminalRef.current?.offsetWidth > 0 && terminalRef.current?.offsetHeight > 0) {
+          fitAddon.current.fit();
+        }
+      } catch (err) {
+        console.warn('fit() failed:', err.message);
+      }
+    });
+
+    if (terminalRef.current) {
+      resizeObserver.observe(terminalRef.current);
+    }
 
     socket.current = io(window.location.origin);
 
@@ -45,10 +58,11 @@ const TerminalInstance = ({ tabId }) => {
 
     socket.current.on('output', data => {
       term.current.write(data);
+      setLogData(prev => prev + data);
     });
 
     socket.current.on('sshConnected', (data) => {
-      console.log(' sshConnected received:', data);
+      console.log(' sshConnected received');
       term.current.writeln('\x1b[32mSSH Connection established\x1b[0m');
       if (data.remainingTime) {
         setRemainingTime(Math.floor(data.remainingTime / 1000));
@@ -66,7 +80,6 @@ const TerminalInstance = ({ tabId }) => {
     };
   }, [tabId]);
 
-  // Countdown timer
   useEffect(() => {
     if (remainingTime === null) return;
     const timer = setInterval(() => {
@@ -78,11 +91,6 @@ const TerminalInstance = ({ tabId }) => {
     }, 1000);
     return () => clearInterval(timer);
   }, [remainingTime]);
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setServerInfo(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-  };
 
   const connectSSH = () => {
     const port = serverInfo.port || 22;
@@ -99,14 +107,28 @@ const TerminalInstance = ({ tabId }) => {
     });
   };
 
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setServerInfo(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  };
+
+  const downloadLog = () => {
+    const blob = new Blob([logData], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `session-${tabId}.log`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const clearTerminal = () => {
-    if (term.current) {
-      term.current.clear();
-    }
+    term.current.clear();
+    setLogData('');
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', background: '#000', padding: '10px', borderRadius: '6px' }}>
       <div className="terminal-header" style={{ marginBottom: '8px' }}>
         <input type="text" name="host" placeholder="Host" value={serverInfo.host} onChange={handleInputChange} />
         <input type="number" name="port" placeholder="Port" value={serverInfo.port} onChange={handleInputChange} />
@@ -123,7 +145,8 @@ const TerminalInstance = ({ tabId }) => {
           </>
         )}
         <button onClick={connectSSH}>Connect</button>
-        <button onClick={clearTerminal} style={{ marginLeft: '8px' }}>Clear</button>
+        <button onClick={downloadLog}>Download Log</button>
+        <button onClick={clearTerminal}>Clear</button>
       </div>
 
       <div

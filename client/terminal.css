@@ -296,3 +296,147 @@ body {
       gap: 5px;
     }
   }
+
+
+  /* Tab Bar Styling - Add this to your terminal.css */
+
+.tab-bar {
+  display: flex;
+  align-items: center;
+  background-color: #2c3e50;
+  border-radius: 8px 8px 0 0;
+  padding: 5px;
+  margin-bottom: 0;
+  overflow-x: auto;
+  min-height: 40px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  background-color: #34495e;
+  color: #ecf0f1;
+  padding: 8px 12px;
+  margin-right: 5px;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  min-width: 120px;
+  max-width: 200px;
+  position: relative;
+  border: 1px solid #2c3e50;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tab:hover {
+  background-color: #3b4f66;
+}
+
+.tab.active {
+  background-color: #3498db;
+  color: white;
+  border-bottom: 1px solid #3498db;
+  transform: translateY(1px);
+}
+
+.tab span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #bdc3c7;
+  cursor: pointer;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 16px;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.tab.active .close-btn {
+  color: #ecf0f1;
+}
+
+.tab-rename-input {
+  background-color: #2c3e50;
+  color: #ecf0f1;
+  border: 1px solid #3498db;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 13px;
+  width: 100%;
+  outline: none;
+}
+
+.add-tab {
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  margin-left: 5px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-tab:hover {
+  background-color: #2ecc71;
+  transform: scale(1.1);
+}
+
+/* Terminal content area */
+.terminal-content {
+  background-color: #1e1e1e;
+  border-radius: 0 0 8px 8px;
+  min-height: 500px;
+  position: relative;
+}
+
+.terminal-tab-content {
+  width: 100%;
+  height: 100%;
+}
+
+/* Responsive tab design */
+@media (max-width: 768px) {
+  .tab {
+    min-width: 100px;
+    max-width: 150px;
+    padding: 6px 8px;
+  }
+  
+  .tab span {
+    font-size: 12px;
+  }
+  
+  .close-btn {
+    margin-left: 4px;
+    padding: 1px 4px;
+    font-size: 14px;
+  }
+  
+  .add-tab {
+    width: 25px;
+    height: 25px;
+    font-size: 16px;
+  }
+}
