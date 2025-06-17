@@ -13,6 +13,35 @@ const docker = new Docker({ host: 'localhost', port: 2375 });
 let io;
 const terminalSessions = new Map();
 
+
+
+
+WebApp.connectHandlers.use('/api/active-containers', async (req, res) => {
+  try {
+    const containers = await docker.listContainers({ all: false }); // running only
+    const formatted = containers.map(c => ({
+      id: c.Id,
+      image: c.Image,
+      name: c.Names?.[0]?.replace('/', ''),
+      state: c.State,
+      status: c.Status,
+      created: c.Created
+    }));
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*', // optional if serving frontend from same origin
+    });
+    res.end(JSON.stringify(formatted));
+  } catch (err) {
+    console.error('Failed to fetch containers:', err.message);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: err.message }));
+  }
+});
+
+
+
 Meteor.startup(() => {
   WebApp.connectHandlers.use('/api/audit-logs', async (req, res) => {
   try {

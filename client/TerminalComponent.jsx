@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import TerminalInstance from '/imports/ui/components/TerminalInstance.jsx';
 import './main.css';
+import ActiveContainersPanel from '/imports/ui/components/ActiveContainersPanel';
 
 const TerminalComponent = () => {
   const [terminals, setTerminals] = useState([]);
@@ -59,6 +60,7 @@ const TerminalComponent = () => {
   return (
     <div className="terminal-page">
       <h1>SSH Terminal</h1>
+     <ActiveContainersPanel />
       
       <div className="terminal-container">
         {/* Tab Bar */}
