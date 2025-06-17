@@ -14,7 +14,100 @@ let io;
 const terminalSessions = new Map();
 
 
+WebApp.connectHandlers.use('/api/stop-container', async (req, res) => {
+  if (req.method !== 'POST') {
+    res.writeHead(405, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Method not allowed' }));
+    return;
+  }
 
+  try {
+    const { containerId } = req.body;
+    
+    if (!containerId) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Container ID is required' }));
+      return;
+    }
+
+    console.log(`Attempting to stop container: ${containerId}`);
+    
+    // Get the container instance
+    const container = docker.getContainer(containerId);
+    
+    // Check if container exists and is running
+    const containerInfo = await container.inspect();
+    
+    if (!containerInfo.State.Running) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Container is not running' }));
+      return;
+    }
+
+    // Stop the container
+    await container.stop({ t: 10 }); // 10 second timeout
+    console.log(`Container ${containerId} stopped successfully`);
+
+    // Remove the container
+    await container.remove();
+    console.log(`Container ${containerId} removed successfully`);
+
+    // Check if this container was part of an active SSH session and clean it up
+    for (const [socketId, session] of terminalSessions) {
+      if (session.containerId === containerId) {
+        console.log(`Cleaning up SSH session for container ${containerId}`);
+        
+        // Clear the expiry timeout
+        if (session.expiryTimeout) {
+          clearTimeout(session.expiryTimeout);
+        }
+        
+        // Close the SSH connection
+        if (session.conn) {
+          session.conn.end();
+        }
+        
+        // Remove from active sessions
+        terminalSessions.delete(socketId);
+        
+        // Notify client that session ended
+        if (io) {
+          io.to(socketId).emit('output', '\r\n\x1b[31mContainer stopped by administrator\x1b[0m\r\n');
+          io.to(socketId).emit('disconnect');
+        }
+        
+        break;
+      }
+    }
+
+    res.writeHead(200, { 
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    });
+    res.end(JSON.stringify({ 
+      success: true, 
+      message: `Container ${containerId} stopped and removed successfully`
+    }));
+
+  } catch (err) {
+    console.error('Failed to stop container:', err.message);
+    
+    let statusCode = 500;
+    let errorMessage = err.message;
+    
+    // Handle specific Docker errors
+    if (err.statusCode === 404) {
+      statusCode = 404;
+      errorMessage = 'Container not found';
+    } else if (err.statusCode === 304) {
+      statusCode = 400;
+      errorMessage = 'Container already stopped';
+    }
+    
+    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: errorMessage }));
+  }
+});
 
 WebApp.connectHandlers.use('/api/active-containers', async (req, res) => {
   try {
