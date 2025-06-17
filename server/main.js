@@ -13,7 +13,7 @@ const docker = new Docker({ host: 'localhost', port: 2375 });
 let io;
 const terminalSessions = new Map();
 
-
+// API endpoint to stop and remove containers
 WebApp.connectHandlers.use('/api/stop-container', async (req, res) => {
   if (req.method !== 'POST') {
     res.writeHead(405, { 'Content-Type': 'application/json' });
@@ -109,6 +109,7 @@ WebApp.connectHandlers.use('/api/stop-container', async (req, res) => {
   }
 });
 
+// API endpoint to get active containers
 WebApp.connectHandlers.use('/api/active-containers', async (req, res) => {
   try {
     const containers = await docker.listContainers({ all: false }); // running only
@@ -118,12 +119,13 @@ WebApp.connectHandlers.use('/api/active-containers', async (req, res) => {
       name: c.Names?.[0]?.replace('/', ''),
       state: c.State,
       status: c.Status,
-      created: c.Created
+      created: c.Created,
+      Ports: c.Ports // Include the Ports array
     }));
 
     res.writeHead(200, {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*', // optional if serving frontend from same origin
+      'Access-Control-Allow-Origin': '*',
     });
     res.end(JSON.stringify(formatted));
   } catch (err) {
@@ -133,30 +135,18 @@ WebApp.connectHandlers.use('/api/active-containers', async (req, res) => {
   }
 });
 
-
-
-Meteor.startup(() => {
-  WebApp.connectHandlers.use('/api/audit-logs', async (req, res) => {
-  try {
-    const logs = await AuditLogs.find({}, {
-      projection: { _id: 0 },
-      sort: { connectedAt: -1 }
-    }).fetch();
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(logs));
-  } catch (err) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Failed to fetch audit logs' }));
+// API endpoint to create new containers
+WebApp.connectHandlers.use('/api/create-container', async (req, res) => {
+  if (req.method !== 'POST') {
+    res.writeHead(405, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Method not allowed' }));
+    return;
   }
-});
 
-
-  io = new Server(WebApp.httpServer, {
-    cors: { origin: '*', methods: ['GET', 'POST'] }
-  });
-
-  async function createSSHContainer() {
+  try {
+    console.log('Creating new SSH container...');
+    
+    // Create container using the same logic as before
     const containerName = `ssh-session-${Date.now()}`;
     const container = await docker.createContainer({
       Image: 'ssh-terminal',
@@ -167,21 +157,128 @@ Meteor.startup(() => {
     });
 
     await container.start();
-    await new Promise(r => setTimeout(r, 300));
+    console.log(`Container ${containerName} created and started`);
+    
+    // Wait a moment for the container to fully start
+    await new Promise(r => setTimeout(r, 500));
+    
+    // Get container details
     const data = await container.inspect();
     const mapped = data?.NetworkSettings?.Ports?.['22/tcp'];
+    
     if (!mapped || !mapped[0]?.HostPort) {
-      throw new Error('Could not retrieve mapped HostPort for SSH container.');
+      throw new Error('Could not retrieve mapped HostPort for SSH container');
     }
 
-    return {
+    const containerInfo = {
       id: container.id,
       name: containerName,
       host: 'localhost',
-      port: mapped[0].HostPort
+      port: parseInt(mapped[0].HostPort),
+      image: 'ssh-terminal',
+      status: 'Up',
+      state: 'running',
+      created: new Date().toISOString()
     };
+
+    console.log(`Container created successfully: ${containerName} on port ${containerInfo.port}`);
+
+    res.writeHead(200, { 
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    });
+    res.end(JSON.stringify({ 
+      success: true, 
+      message: `Container ${containerName} created successfully`,
+      containerName: containerName,
+      containerInfo: containerInfo
+    }));
+
+  } catch (err) {
+    console.error('Failed to create container:', err.message);
+    
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      error: `Failed to create container: ${err.message}` 
+    }));
+  }
+});
+
+Meteor.startup(() => {
+  // API endpoint for audit logs
+  WebApp.connectHandlers.use('/api/audit-logs', async (req, res) => {
+    try {
+      const logs = await AuditLogs.find({}, {
+        projection: { _id: 0 },
+        sort: { connectedAt: -1 }
+      }).fetch();
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(logs));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to fetch audit logs' }));
+    }
+  });
+
+  // Initialize Socket.IO
+  io = new Server(WebApp.httpServer, {
+    cors: { origin: '*', methods: ['GET', 'POST'] }
+  });
+
+  // Function to get an available container instead of creating a new one
+  async function getAvailableContainer() {
+    try {
+      // Get list of running containers
+      const containers = await docker.listContainers({ all: false });
+      
+      // Filter for ssh-terminal containers that are running
+      const sshContainers = containers.filter(container => 
+        container.Image === 'ssh-terminal' && 
+        container.State === 'running'
+      );
+
+      if (sshContainers.length === 0) {
+        throw new Error('No SSH containers available. Please create a container first.');
+      }
+
+      // Find a container that's not currently being used
+      // Check if any containers are not in active sessions
+      let availableContainer = sshContainers.find(containerInfo => {
+        const isInUse = Array.from(terminalSessions.values()).some(session => 
+          session.containerId === containerInfo.Id
+        );
+        return !isInUse;
+      });
+
+      if (!availableContainer) {
+        // If all containers are in use, use the first one (allow multiple connections to same container)
+        console.log('All containers in use, connecting to first available container');
+        availableContainer = sshContainers[0];
+      }
+
+      // Get container details
+      const container = docker.getContainer(availableContainer.Id);
+      const data = await container.inspect();
+      const mapped = data?.NetworkSettings?.Ports?.['22/tcp'];
+      
+      if (!mapped || !mapped[0]?.HostPort) {
+        throw new Error('Could not retrieve mapped HostPort for SSH container');
+      }
+
+      return {
+        id: availableContainer.Id,
+        name: availableContainer.Names[0].replace('/', ''),
+        host: 'localhost',
+        port: parseInt(mapped[0].HostPort)
+      };
+    } catch (error) {
+      console.error('Error getting available container:', error);
+      throw error;
+    }
   }
 
+  // Auto-expiry function for sessions
   function startAutoExpiry(socketId, durationMs = 10 * 60 * 1000) {
     const session = terminalSessions.get(socketId);
     if (!session) return;
@@ -190,27 +287,25 @@ Meteor.startup(() => {
 
     session.expiryTimeout = setTimeout(async () => {
       if (terminalSessions.has(socketId)) {
-        const { conn, containerId } = terminalSessions.get(socketId);
-        try {
-          const container = docker.getContainer(containerId);
-          await container.stop();
-          await container.remove();
-        } catch (err) {
-          console.error('Auto-expiry cleanup error:', err);
+        const { conn } = terminalSessions.get(socketId);
+        
+        if (conn) {
+          conn.end();
         }
-        conn.end();
         terminalSessions.delete(socketId);
-        console.log(`Auto-expired and removed session ${socketId}`);
+        console.log(`Auto-expired session ${socketId} (container kept running)`);
       }
     }, durationMs);
 
     return session.expiryTimeout;
   }
 
+  // Socket.IO connection handling
   io.on('connection', (socket) => {
     console.log(`Client connected: ${socket.id}`);
     let sessionLog = [];
 
+    // Updated startSession handler - now connects to existing containers
     socket.on('startSession', async (credentials) => {
       const ip = socket.handshake.address || socket.conn.remoteAddress || 'unknown';
 
@@ -226,149 +321,153 @@ Meteor.startup(() => {
         console.error('Audit log insert error:', err);
       }
 
-      const containerInfo = await createSSHContainer();
-      credentials.port = containerInfo.port;
-      credentials.host = containerInfo.host;
-
-      const conn = new Client();
-      const sessionStartTime = new Date();
-      let sessionId;
-
       try {
-        sessionId = await SessionLogs.insertAsync({
-          socketId: socket.id,
-          host: credentials.host,
-          port: credentials.port,
-          username: credentials.username,
-          startTime: sessionStartTime,
-          status: 'connecting'
-        });
-      } catch (err) {
-        console.error('Error inserting session log:', err);
-        socket.emit('output', '\r\n\x1b[31mError: Could not start session\x1b[0m\r\n');
-        return;
-      }
+        // Get an available container instead of creating a new one
+        const containerInfo = await getAvailableContainer();
+        
+        // Use the container's host and port
+        credentials.port = containerInfo.port;
+        credentials.host = containerInfo.host;
 
-      conn.on('ready', () => {
-        SessionLogs.updateAsync(sessionId, { $set: { status: 'connected' } }).catch(console.error);
+        console.log(`Connecting to existing container: ${containerInfo.name} on port ${containerInfo.port}`);
 
-        const expiryTimeout = startAutoExpiry(socket.id);
-        terminalSessions.set(socket.id, {
-          conn,
-          stream: null,
-          sessionId,
-          sessionStartTime,
-          containerId: containerInfo.id,
-          cleanedUp: false,
-          expiryTimeout
-        });
+        const conn = new Client();
+        const sessionStartTime = new Date();
+        let sessionId;
 
-        conn.shell((err, stream) => {
-          if (err) {
-            socket.emit('output', `\r\n\x1b[31mSSH Error: ${err.message}\x1b[0m\r\n`);
-            SessionLogs.updateAsync(sessionId, {
-              $set: { status: 'error', errorMessage: err.message }
-            }).catch(console.error);
-            return;
-          }
-
-          const session = terminalSessions.get(socket.id);
-          session.stream = stream;
-
-          const remainingTime = session.expiryTimeout
-            ? session.expiryTimeout._idleStart + session.expiryTimeout._idleTimeout - Date.now()
-            : 10 * 60 * 1000;
-
-          socket.emit('sshConnected', { remainingTime });
-
-          stream.on('data', (data) => {
-            const output = data.toString();
-            socket.emit('output', output);
-            if (sessionLog.length > 1000) sessionLog.shift();
-            sessionLog.push({ type: 'output', data: output, timestamp: new Date() });
-            startAutoExpiry(socket.id);
+        try {
+          sessionId = await SessionLogs.insertAsync({
+            socketId: socket.id,
+            host: credentials.host,
+            port: credentials.port,
+            username: credentials.username,
+            startTime: sessionStartTime,
+            status: 'connecting'
           });
-
-          stream.stderr.on('data', (data) => {
-            const error = data.toString();
-            socket.emit('output', `\x1b[31m${error}\x1b[0m`);
-            sessionLog.push({ type: 'error', data: error, timestamp: new Date() });
-            startAutoExpiry(socket.id);
-          });
-
-          stream.on('close', async () => {
-            socket.emit('output', '\r\n\x1b[33mSSH Connection closed.\x1b[0m\r\n');
-            const endTime = new Date();
-            const durationInSeconds = Math.floor((endTime - sessionStartTime) / 1000);
-            await SessionLogs.updateAsync(sessionId, {
-              $set: {
-                status: 'closed',
-                endTime,
-                duration: durationInSeconds,
-                logSummary: sessionLog.slice(-50)
-              }
-            }).catch(console.error);
-
-            const session = terminalSessions.get(socket.id);
-            if (session && !session.cleanedUp) {
-              session.cleanedUp = true;
-              if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
-              try {
-                const container = docker.getContainer(session.containerId);
-                await container.stop();
-                await container.remove();
-              } catch (err) {
-                console.error('Cleanup error:', err);
-              }
-            }
-
-            terminalSessions.delete(socket.id);
-            conn.end();
-          });
-
-          socket.removeAllListeners('input');
-          socket.on('input', (data) => {
-            if (terminalSessions.has(socket.id)) {
-              terminalSessions.get(socket.id).stream.write(data);
-              startAutoExpiry(socket.id);
-            }
-          });
-        });
-      });
-
-      conn.on('error', (err) => {
-        console.error(`SSH Connection Error for ${socket.id}:`, err);
-        socket.emit('output', `\r\n\x1b[31mSSH Connection Error: ${err.message}\x1b[0m\r\n`);
-        SessionLogs.updateAsync(sessionId, {
-          $set: { status: 'error', errorMessage: err.message, endTime: new Date() }
-        }).catch(console.error);
-      });
-
-      try {
-        const connectionOptions = {
-          host: credentials.host,
-          port: credentials.port || 22,
-          username: credentials.username,
-          readyTimeout: 30000,
-          keepaliveInterval: 30000
-        };
-
-        if (credentials.useKeyAuth && credentials.privateKey) {
-          connectionOptions.privateKey = credentials.privateKey;
-          if (credentials.passphrase) connectionOptions.passphrase = credentials.passphrase;
-        } else if (credentials.password) {
-          connectionOptions.password = credentials.password;
-        } else {
-          throw new Error('No authentication method provided');
+        } catch (err) {
+          console.error('Error inserting session log:', err);
+          socket.emit('output', '\r\n\x1b[31mError: Could not start session\x1b[0m\r\n');
+          return;
         }
 
-        conn.connect(connectionOptions);
-      } catch (error) {
-        console.error(`SSH Connection Error for ${socket.id}:`, error);
-        socket.emit('output', `\r\n\x1b[31mSSH Connection Error: ${error.message}\x1b[0m\r\n`);
-        SessionLogs.updateAsync(sessionId, {
-          $set: { status: 'error', errorMessage: error.message, endTime: new Date() }
-        }).catch(console.error);
+        conn.on('ready', () => {
+          SessionLogs.updateAsync(sessionId, { $set: { status: 'connected' } }).catch(console.error);
+
+          const expiryTimeout = startAutoExpiry(socket.id);
+          terminalSessions.set(socket.id, {
+            conn,
+            stream: null,
+            sessionId,
+            sessionStartTime,
+            containerId: containerInfo.id,
+            cleanedUp: false,
+            expiryTimeout
+          });
+
+          conn.shell((err, stream) => {
+            if (err) {
+              socket.emit('output', `\r\n\x1b[31mSSH Error: ${err.message}\x1b[0m\r\n`);
+              SessionLogs.updateAsync(sessionId, {
+                $set: { status: 'error', errorMessage: err.message }
+              }).catch(console.error);
+              return;
+            }
+
+            const session = terminalSessions.get(socket.id);
+            session.stream = stream;
+
+            const remainingTime = session.expiryTimeout
+              ? session.expiryTimeout._idleStart + session.expiryTimeout._idleTimeout - Date.now()
+              : 10 * 60 * 1000;
+
+            socket.emit('sshConnected', { remainingTime });
+
+            stream.on('data', (data) => {
+              const output = data.toString();
+              socket.emit('output', output);
+              if (sessionLog.length > 1000) sessionLog.shift();
+              sessionLog.push({ type: 'output', data: output, timestamp: new Date() });
+              startAutoExpiry(socket.id);
+            });
+
+            stream.stderr.on('data', (data) => {
+              const error = data.toString();
+              socket.emit('output', `\x1b[31m${error}\x1b[0m`);
+              sessionLog.push({ type: 'error', data: error, timestamp: new Date() });
+              startAutoExpiry(socket.id);
+            });
+
+            stream.on('close', async () => {
+              socket.emit('output', '\r\n\x1b[33mSSH Connection closed.\x1b[0m\r\n');
+              const endTime = new Date();
+              const durationInSeconds = Math.floor((endTime - sessionStartTime) / 1000);
+              await SessionLogs.updateAsync(sessionId, {
+                $set: {
+                  status: 'closed',
+                  endTime,
+                  duration: durationInSeconds,
+                  logSummary: sessionLog.slice(-50)
+                }
+              }).catch(console.error);
+
+              const session = terminalSessions.get(socket.id);
+              if (session && !session.cleanedUp) {
+                session.cleanedUp = true;
+                if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
+                
+              }
+
+              terminalSessions.delete(socket.id);
+              conn.end();
+            });
+
+            socket.removeAllListeners('input');
+            socket.on('input', (data) => {
+              if (terminalSessions.has(socket.id)) {
+                terminalSessions.get(socket.id).stream.write(data);
+                startAutoExpiry(socket.id);
+              }
+            });
+          });
+        });
+
+        conn.on('error', (err) => {
+          console.error(`SSH Connection Error for ${socket.id}:`, err);
+          socket.emit('output', `\r\n\x1b[31mSSH Connection Error: ${err.message}\x1b[0m\r\n`);
+          SessionLogs.updateAsync(sessionId, {
+            $set: { status: 'error', errorMessage: err.message, endTime: new Date() }
+          }).catch(console.error);
+        });
+
+        try {
+          const connectionOptions = {
+            host: credentials.host,
+            port: credentials.port || 22,
+            username: credentials.username,
+            readyTimeout: 30000,
+            keepaliveInterval: 30000
+          };
+
+          if (credentials.useKeyAuth && credentials.privateKey) {
+            connectionOptions.privateKey = credentials.privateKey;
+            if (credentials.passphrase) connectionOptions.passphrase = credentials.passphrase;
+          } else if (credentials.password) {
+            connectionOptions.password = credentials.password;
+          } else {
+            throw new Error('No authentication method provided');
+          }
+
+          conn.connect(connectionOptions);
+        } catch (error) {
+          console.error(`SSH Connection Error for ${socket.id}:`, error);
+          socket.emit('output', `\r\n\x1b[31mSSH Connection Error: ${error.message}\x1b[0m\r\n`);
+          SessionLogs.updateAsync(sessionId, {
+            $set: { status: 'error', errorMessage: error.message, endTime: new Date() }
+          }).catch(console.error);
+        }
+      } catch (containerError) {
+        console.error('Container error:', containerError);
+        socket.emit('output', `\r\n\x1b[31mContainer Error: ${containerError.message}\x1b[0m\r\n`);
       }
     });
 
@@ -377,12 +476,9 @@ Meteor.startup(() => {
       if (session && !session.cleanedUp) {
         session.cleanedUp = true;
         if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
-        try {
-          const container = docker.getContainer(session.containerId);
-          await container.stop();
-          await container.remove();
-        } catch (err) {
-          console.error(`Cleanup error:`, err);
+        
+        if (session.conn) {
+          session.conn.end();
         }
       }
 
@@ -396,12 +492,10 @@ Meteor.startup(() => {
       if (session && !session.cleanedUp) {
         session.cleanedUp = true;
         if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
-        try {
-          const container = docker.getContainer(session.containerId);
-          await container.stop();
-          await container.remove();
-        } catch (err) {
-          console.error(`Cleanup error:`, err);
+        
+        // Containers persist for reuse
+        if (session.conn) {
+          session.conn.end();
         }
       }
 
