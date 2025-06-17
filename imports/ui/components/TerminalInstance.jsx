@@ -23,18 +23,31 @@ const TerminalInstance = ({ tabId }) => {
   });
 
   useEffect(() => {
+    // Terminal initialization with proper scrollback settings
     term.current = new Terminal({
       fontSize: 14,
       cursorBlink: true,
       disableStdin: false,
-      scrollback: 5000,
-      theme: { background: '#1e1e1e', foreground: '#ffffff' }
+      scrollback: 5000, // Scrollback buffer
+      theme: { background: '#1e1e1e', foreground: '#ffffff' },
+      scrollOnUserInput: true,
+      fastScrollSensitivity: 5,
+      scrollSensitivity: 1,
+      convertEol: true,
+      allowTransparency: false
     });
 
     term.current.loadAddon(fitAddon.current);
     term.current.open(terminalRef.current);
     term.current.focus();
     term.current.writeln('New Terminal Instance');
+
+    // Force fit after terminal 
+    setTimeout(() => {
+      if (term.current && fitAddon.current) {
+        fitAddon.current.fit();
+      }
+    }, 100);
 
     const resizeObserver = new ResizeObserver(() => {
       try {
@@ -77,9 +90,11 @@ const TerminalInstance = ({ tabId }) => {
       socket.current.emit('endSession');
       socket.current.disconnect();
       term.current.dispose();
+      resizeObserver.disconnect();
     };
   }, [tabId]);
 
+  //Timer logic
   useEffect(() => {
     if (remainingTime === null) return;
     const timer = setInterval(() => {
@@ -128,8 +143,9 @@ const TerminalInstance = ({ tabId }) => {
   };
 
   return (
-    <div style={{ position: 'relative', background: '#000', padding: '10px', borderRadius: '6px' }}>
-      <div className="terminal-header" style={{ marginBottom: '8px' }}>
+    <>
+      {/* Fixed Terminal Header (connection form) */}
+      <div className="terminal-header">
         <input type="text" name="host" placeholder="Host" value={serverInfo.host} onChange={handleInputChange} />
         <input type="number" name="port" placeholder="Port" value={serverInfo.port} onChange={handleInputChange} />
         <input type="text" name="username" placeholder="Username" value={serverInfo.username} onChange={handleInputChange} />
@@ -147,30 +163,29 @@ const TerminalInstance = ({ tabId }) => {
         <button onClick={connectSSH}>Connect</button>
         <button onClick={downloadLog}>Download Log</button>
         <button onClick={clearTerminal}>Clear</button>
+        
+        {/* Session Timer */}
+        {remainingTime !== null && (
+          <div style={{
+            color: '#0f0',
+            fontSize: '12px',
+            fontFamily: 'monospace',
+            background: '#111',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            marginLeft: 'auto'
+          }}>
+             {remainingTime}s remaining
+          </div>
+        )}
       </div>
 
+      {/* Scrollable Terminal Instance - ONLY THIS PART SCROLLS */}
       <div
         className="terminal-instance"
         ref={terminalRef}
-        style={{ height: '400px', width: '100%', background: '#000' }}
-      ></div>
-
-      {remainingTime !== null && (
-        <div style={{
-          position: 'absolute',
-          top: '5px',
-          right: '10px',
-          color: '#0f0',
-          fontSize: '12px',
-          fontFamily: 'monospace',
-          background: '#111',
-          padding: '2px 6px',
-          borderRadius: '4px'
-        }}>
-           {remainingTime}s remaining
-        </div>
-      )}
-    </div>
+      />
+    </>
   );
 };
 

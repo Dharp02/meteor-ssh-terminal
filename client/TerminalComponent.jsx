@@ -1,4 +1,3 @@
-// TerminalComponent.jsx
 import React, { useState } from 'react';
 import TerminalInstance from '/imports/ui/components/TerminalInstance.jsx';
 import './main.css';
@@ -28,7 +27,6 @@ const TerminalComponent = () => {
     if (activeTab === id) {
       const remainingTerminals = terminals.filter(tab => tab.id !== id);
       if (remainingTerminals.length > 0) {
-        // Set active tab to the last remaining terminal
         const fallback = remainingTerminals[remainingTerminals.length - 1];
         setActiveTab(fallback.id);
       } else {
@@ -60,10 +58,15 @@ const TerminalComponent = () => {
   return (
     <div className="terminal-page">
       <h1>SSH Terminal</h1>
-     <ActiveContainersPanel />
       
+      {/* Active Containers Panel */}
+      <div className="active-containers-panel">
+        <ActiveContainersPanel />
+      </div>
+      
+      {/* Terminal Container */}
       <div className="terminal-container">
-        {/* Tab Bar */}
+        {/* Fixed Tab Bar */}
         <div className="tab-bar">
           {terminals.map(tab => (
             <div
@@ -136,7 +139,8 @@ const TerminalComponent = () => {
                 key={tab.id} 
                 className="terminal-tab-content"
                 style={{ 
-                  display: activeTab === tab.id ? 'block' : 'none',
+                  display: activeTab === tab.id ? 'flex' : 'none',
+                  flexDirection: 'column',
                   height: '100%'
                 }}
               >
