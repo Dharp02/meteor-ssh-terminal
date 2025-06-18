@@ -1,3 +1,5 @@
+
+
 import { Meteor } from 'meteor/meteor';
 import { WebApp } from 'meteor/webapp';
 import { Server } from 'socket.io';
@@ -6,6 +8,11 @@ import { SessionLogs } from '../imports/api/sessions';
 import { AuditLogs } from '../imports/api/auditLogs'; 
 import Docker from 'dockerode';
 import bodyParser from 'body-parser';
+import './aichat.js';
+import dotenv from 'dotenv';
+const result=dotenv.config()
+console.log(result)
+
 
 WebApp.connectHandlers.use(bodyParser.json());
 

@@ -3,6 +3,7 @@ import TerminalInstance from '/imports/ui/components/TerminalInstance.jsx';
 import ActiveContainersPanel from '/imports/ui/components/ActiveContainersPanel';
 import Chatbot from '/imports/ui/components/Chatbox'; 
 import './main.css';
+import EnhancedChatbot from '/imports/ui/components/EnhancedChatbox';
 
 const TerminalComponent = () => {
   const [terminals, setTerminals] = useState([]);
@@ -157,7 +158,7 @@ const TerminalComponent = () => {
       </div>
 
       {/* Add the Chatbot component  */}
-      <Chatbot />
+      <EnhancedChatbot />
     </div>
   );
 };
