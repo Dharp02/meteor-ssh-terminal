@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import TerminalInstance from '/imports/ui/components/TerminalInstance.jsx';
-import './main.css';
 import ActiveContainersPanel from '/imports/ui/components/ActiveContainersPanel';
+import Chatbot from '/imports/ui/components/Chatbox'; 
+import './main.css';
 
 const TerminalComponent = () => {
   const [terminals, setTerminals] = useState([]);
@@ -59,12 +60,12 @@ const TerminalComponent = () => {
     <div className="terminal-page">
       <h1>SSH Terminal</h1>
       
-      {/* Active Containers Panel */}
+      {/*  Active Containers Panel */}
       <div className="active-containers-panel">
         <ActiveContainersPanel />
       </div>
       
-      {/* Terminal Container */}
+      {/*  Terminal Container */}
       <div className="terminal-container">
         {/* Fixed Tab Bar */}
         <div className="tab-bar">
@@ -154,6 +155,9 @@ const TerminalComponent = () => {
           )}
         </div>
       </div>
+
+      {/* Add the Chatbot component  */}
+      <Chatbot />
     </div>
   );
 };
