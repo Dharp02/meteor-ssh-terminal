@@ -8,6 +8,8 @@ import EnhancedChatbot from '/imports/ui/components/EnhancedChatbox';
 const TerminalComponent = () => {
   const [terminals, setTerminals] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
+  const [isTerminalExpanded, setIsTerminalExpanded] = useState(false); // Hidden by default
+  const [isTerminalFullscreen, setIsTerminalFullscreen] = useState(false);
 
   const createNewTerminalTab = () => {
     const id = Date.now();
@@ -57,18 +59,58 @@ const TerminalComponent = () => {
     ));
   };
 
+  const toggleTerminal = () => {
+    setIsTerminalExpanded(prev => !prev);
+  };
+
+  const toggleFullscreen = () => {
+    setIsTerminalFullscreen(prev => !prev);
+    // If entering fullscreen, make sure terminal is expanded
+    if (!isTerminalFullscreen) {
+      setIsTerminalExpanded(true);
+    }
+  };
+
+  const minimizeTerminal = () => {
+    setIsTerminalFullscreen(false);
+    setIsTerminalExpanded(false);
+  };
+
   return (
     <div className="terminal-page">
       <h1>SSH Terminal</h1>
       
-      {/*  Active Containers Panel */}
-      <div className="active-containers-panel">
+      {/* Active Containers Panel - Expands when terminal is collapsed */}
+      <div className={`active-containers-panel ${isTerminalExpanded ? 'normal' : 'expanded'}`}>
         <ActiveContainersPanel />
       </div>
-      
-      {/*  Terminal Container */}
-      <div className="terminal-container">
-        {/* Fixed Tab Bar */}
+
+      {/* Terminal Container - Slides to bottom when collapsed */}
+      <div className={`terminal-container ${isTerminalExpanded ? 'expanded' : 'collapsed'}`}>
+        {/* Terminal Toggle Button - Inside terminal container */}
+        <div className="terminal-toggle-container">
+          <button 
+            className="terminal-toggle-btn"
+            onClick={toggleTerminal}
+            title={isTerminalExpanded ? 'Hide Terminal' : 'Show Terminal'}
+          >
+            <span className="toggle-icon">
+              {isTerminalExpanded ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 15L12 9L6 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </span>
+            <span className="toggle-text">
+              {isTerminalExpanded ? 'Hide Terminal' : 'Show Terminal'}
+            </span>
+          </button>
+        </div>
+        {/* Fixed Tab Bar - Always visible */}
         <div className="tab-bar">
           {terminals.map(tab => (
             <div
@@ -122,39 +164,41 @@ const TerminalComponent = () => {
           </button>
         </div>
 
-        {/* Terminal Content Area */}
-        <div className="terminal-content">
-          {terminals.length === 0 ? (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              height: '100%',
-              color: '#7f8c8d',
-              fontSize: '18px'
-            }}>
-              Click the + button to create a new terminal
-            </div>
-          ) : (
-            terminals.map(tab => (
-              <div 
-                key={tab.id} 
-                className="terminal-tab-content"
-                style={{ 
-                  display: activeTab === tab.id ? 'flex' : 'none',
-                  flexDirection: 'column',
-                  height: '100%'
-                }}
-              >
-                <TerminalInstance 
-                  tabId={tab.id} 
-                  label={tab.title} 
-                  onRename={(newTitle) => renameTab(tab.id, newTitle)} 
-                />
+        {/* Terminal Content Area - Only show when expanded */}
+        {isTerminalExpanded && (
+          <div className="terminal-content">
+            {terminals.length === 0 ? (
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                height: '100%',
+                color: '#7f8c8d',
+                fontSize: '18px'
+              }}>
+                Click the + button to create a new terminal
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              terminals.map(tab => (
+                <div 
+                  key={tab.id} 
+                  className="terminal-tab-content"
+                  style={{ 
+                    display: activeTab === tab.id ? 'flex' : 'none',
+                    flexDirection: 'column',
+                    height: '100%'
+                  }}
+                >
+                  <TerminalInstance 
+                    tabId={tab.id} 
+                    label={tab.title} 
+                    onRename={(newTitle) => renameTab(tab.id, newTitle)} 
+                  />
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Add the Chatbot component  */}

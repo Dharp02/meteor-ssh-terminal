@@ -110,54 +110,30 @@ const ActiveContainersPanel = () => {
   };
 
   return (
-    <div style={{ background: '#1e1e1e', color: '#fff', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h3 style={{ margin: 0 }}>Active Containers</h3>
+    <div className="active-containers-content">
+      {/* Header Section */}
+      <div className="containers-header">
+        <div className="header-title">
+          <h3>Active Containers</h3>
+          <span className="container-count">{containers.length} running</span>
+        </div>
         <button
           onClick={createContainer}
           disabled={isCreating}
-          style={{
-            background: '#27ae60',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            padding: '8px 16px',
-            cursor: isCreating ? 'not-allowed' : 'pointer',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            transition: 'all 0.2s ease',
-            opacity: isCreating ? 0.6 : 1
-          }}
-          onMouseEnter={(e) => {
-            if (!isCreating) {
-              e.target.style.background = '#2ecc71';
-              e.target.style.transform = 'translateY(-1px)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isCreating) {
-              e.target.style.background = '#27ae60';
-              e.target.style.transform = 'translateY(0)';
-            }
-          }}
+          className="create-container-btn"
         >
           {isCreating ? 'Creating...' : 'Create'}
         </button>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'row',
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          gap: '1rem',
-          paddingBottom: '0.5rem',
-          whiteSpace: 'nowrap'
-        }}
-      >
+      {/* Containers Grid */}
+      <div className="containers-grid">
         {containers.length === 0 ? (
-          <p style={{ color: '#aaa' }}>No running containers</p>
+          <div className="no-containers">
+            <div className="no-containers-icon">📦</div>
+            <h4>No Active Containers</h4>
+            <p>Click "Create" to start a new SSH container</p>
+          </div>
         ) : (
           containers.map(container => {
             const containerId = container.id || container.Id;
@@ -174,60 +150,52 @@ const ActiveContainersPanel = () => {
             return (
               <div
                 key={containerId}
-                style={{
-                  background: '#2c2c2c',
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  minWidth: '250px',
-                  maxWidth: '250px',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-                  flex: '0 0 auto',
-                  position: 'relative' // For positioning the X button
-                }}
+                className="container-card"
               >
-                {/* X Button - positioned at top right */}
-                <button
-                  onClick={(e) => handleStopClick(e, containerId, name)}
-                  style={{
-                    position: 'absolute',
-                    top: '8px',
-                    right: '8px',
-                    background: '#e74c3c',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '24px',
-                    height: '24px',
-                    cursor: 'pointer',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    lineHeight: '1',
-                    transition: 'all 0.2s ease',
-                    zIndex: 10
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = '#c0392b';
-                    e.target.style.transform = 'scale(1.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = '#e74c3c';
-                    e.target.style.transform = 'scale(1)';
-                  }}
-                  title={`Stop container: ${name}`}
-                >
-                  ×
-                </button>
+                {/* Container Header */}
+                <div className="container-card-header">
+                  <div className="container-name">
+                    <span className="name-text">{name}</span>
+                    <span className="container-id">{containerId.substring(0, 12)}</span>
+                  </div>
+                  <button
+                    onClick={(e) => handleStopClick(e, containerId, name)}
+                    className="stop-btn"
+                    title={`Stop container: ${name}`}
+                  >
+                    ×
+                  </button>
+                </div>
 
                 {/* Container Info */}
-                <strong style={{ fontSize: '16px', paddingRight: '30px' }}>{name}</strong>
-                <p style={{ margin: '4px 0' }}><em>{image}</em></p>
-                <p style={{ margin: '4px 0' }}>Status: <strong>{status}</strong></p>
-                <p style={{ margin: '4px 0' }}>State: {state}</p>
-                <p style={{ margin: '4px 0' }}>Started: {created}</p>
-                <p style={{ margin: '4px 0' }}>Port: <strong>{publicPort}</strong></p>
+                <div className="container-info">
+                  <div className="info-row">
+                    <span className="info-label">Image:</span>
+                    <span className="info-value">{image}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="info-label">Status:</span>
+                    <span className={`status-badge ${state.toLowerCase()}`}>{status}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="info-label">Port:</span>
+                    <span className="port-value">{publicPort}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="info-label">Created:</span>
+                    <span className="info-value">{created}</span>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="container-actions">
+                  <button className="action-btn connect-btn" title="Connect via SSH">
+                    🔗 Connect
+                  </button>
+                  <button className="action-btn logs-btn" title="View Logs">
+                    📋 Logs
+                  </button>
+                </div>
               </div>
             );
           })

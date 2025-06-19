@@ -157,6 +157,7 @@ WebApp.connectHandlers.use('/api/create-container', async (req, res) => {
     const containerName = `ssh-session-${Date.now()}`;
     const container = await docker.createContainer({
       Image: 'ssh-terminal',
+      
       name: containerName,
       Tty: true,
       ExposedPorts: { '22/tcp': {} },
