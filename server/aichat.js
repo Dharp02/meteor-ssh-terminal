@@ -22,7 +22,7 @@ const getAnthropicApiKey = () => {
     throw new Error('ANTHROPIC_API_KEY is required but not provided');
   }
   
-  console.log('✅ Anthropic API key loaded successfully');
+  console.log(' Anthropic API key loaded successfully');
   return apiKey;
 };
 
@@ -32,9 +32,9 @@ try {
   anthropic = createAnthropic({
     apiKey: getAnthropicApiKey()
   });
-  console.log('✅ Anthropic client initialized');
+  console.log(' Anthropic client initialized');
 } catch (error) {
-  console.error('❌ Failed to initialize Anthropic client:', error.message);
+  console.error(' Failed to initialize Anthropic client:', error.message);
   // Don't crash the server, but chat won't work
   anthropic = null;
 }
