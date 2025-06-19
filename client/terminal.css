@@ -14,6 +14,19 @@ body {
     padding: 20px;
     box-sizing: border-box;
     position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Fullscreen mode styles */
+  .terminal-page.fullscreen-mode {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    padding: 0;
+    background-color: #1e1e1e;
   }
   
   h1 {
@@ -374,19 +387,37 @@ body {
     transform: translateY(0);
   }
 
+  .terminal-container.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1001;
+    border-radius: 0;
+    box-shadow: none;
+    flex: none;
+  }
+
   /* Terminal Toggle Button - Inside terminal container */
   .terminal-toggle-container {
     display: flex;
     justify-content: center;
+    align-items: center;
     padding: 10px;
     background-color: #2c3e50;
     border-radius: 8px 8px 0 0;
     border-bottom: 1px solid #34495e;
+    position: relative;
   }
 
   .terminal-container.collapsed .terminal-toggle-container {
     border-radius: 8px;
     border-bottom: none;
+  }
+
+  .terminal-container.fullscreen .terminal-toggle-container {
+    border-radius: 0;
   }
 
   .terminal-toggle-btn {
@@ -448,6 +479,51 @@ body {
     letter-spacing: 0.5px;
   }
 
+  /* Terminal Controls */
+  .terminal-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .control-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ecf0f1;
+    border: none;
+    border-radius: 6px;
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+  }
+
+  .control-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .control-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .control-btn.fullscreen-btn {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+  }
+
+  .control-btn.minimize-btn {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+  }
+
   /* Tab Bar Styling */
   .tab-bar {
     display: flex;
@@ -463,6 +539,10 @@ body {
 
   .terminal-container.collapsed .tab-bar {
     display: none; /* Hide tab bar when collapsed */
+  }
+
+  .terminal-container.fullscreen .tab-bar {
+    border-radius: 0;
   }
   
   .connection-controls {
@@ -693,29 +773,7 @@ body {
   .disconnect-button:hover {
     background-color: #c0392b;
   }
-  
-  .terminal-container {
-    flex: 1;
-    background-color: #1e1e1e;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  }
 
-  .terminal-container.collapsed {
-    max-height: 50px; /* Only show tab bar when collapsed */
-    flex: 0 0 auto;
-  }
-
-  .terminal-container.expanded {
-    flex: 1;
-    min-height: 400px;
-  }
-  
   /* Make terminal take full height of its container */
   .xterm {
     height: 100%;
@@ -731,6 +789,10 @@ body {
 
     .terminal-page {
       padding: 10px;
+    }
+
+    .terminal-page.fullscreen-mode {
+      padding: 0;
     }
 
     .terminal-toggle-btn {
@@ -772,34 +834,16 @@ body {
       gap: 5px;
     }
 
-    .terminal-toggle-btn {
-      padding: 8px 16px;
-      font-size: 12px;
+    .terminal-controls {
+      gap: 4px;
     }
-
-    .toggle-text {
-      display: none;
+    
+    .control-btn {
+      padding: 6px;
     }
   }
 
-
   /* Tab Bar Styling - Add this to your terminal.css */
-
-.tab-bar {
-  display: flex;
-  align-items: center;
-  background-color: #34495e;
-  padding: 5px;
-  margin: 0;
-  overflow-x: auto;
-  min-height: 40px;
-  flex-shrink: 0;
-  border-radius: 0 0 8px 8px;
-}
-
-.terminal-container.collapsed .tab-bar {
-  display: none; /* Hide tab bar when collapsed */
-}
 
 .tab {
   display: flex;
@@ -903,6 +947,10 @@ body {
   position: relative;
 }
 
+.terminal-container.fullscreen .terminal-content {
+  border-radius: 0;
+}
+
 .terminal-tab-content {
   width: 100%;
   height: 100%;
@@ -931,23 +979,6 @@ body {
     height: 25px;
     font-size: 16px;
   }
-}
-
-/* Main terminal page layout */
-.terminal-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  padding: 20px;
-  box-sizing: border-box;
-  overflow: hidden; /* Prevent page scrolling */
-}
-
-/* Fixed header */
-h1 {
-  margin-top: 0;
-  color: #2c3e50;
-  flex-shrink: 0; /* Don't shrink */
 }
 
 /* Fixed Terminal Container */
@@ -980,17 +1011,16 @@ h1 {
   transform: translateY(0);
 }
 
-/* Fixed Tab Bar */
-.tab-bar {
-  display: flex;
-  align-items: center;
-  background-color: #2c3e50;
-  border-radius: 8px 8px 0 0;
-  padding: 5px;
-  margin-bottom: 0;
-  overflow-x: auto;
-  min-height: 40px;
-  flex-shrink: 0; /* Don't shrink */
+.terminal-container.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1001;
+  border-radius: 0;
+  box-shadow: none;
+  flex: none;
 }
 
 /* Fixed Terminal Content Area */

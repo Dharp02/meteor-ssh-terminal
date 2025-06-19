@@ -20,6 +20,11 @@ const TerminalComponent = () => {
     };
     setTerminals(prev => [...prev, newTab]);
     setActiveTab(id);
+    
+    // Auto-expand terminal when creating first tab
+    if (!isTerminalExpanded) {
+      setIsTerminalExpanded(true);
+    }
   };
 
   const closeTab = (id) => {
@@ -61,6 +66,10 @@ const TerminalComponent = () => {
 
   const toggleTerminal = () => {
     setIsTerminalExpanded(prev => !prev);
+    // If collapsing, also exit fullscreen
+    if (isTerminalExpanded && isTerminalFullscreen) {
+      setIsTerminalFullscreen(false);
+    }
   };
 
   const toggleFullscreen = () => {
@@ -73,20 +82,36 @@ const TerminalComponent = () => {
 
   const minimizeTerminal = () => {
     setIsTerminalFullscreen(false);
-    setIsTerminalExpanded(false);
+    setIsTerminalExpanded(true); // Keep expanded but not fullscreen
+  };
+
+  const getPageClass = () => {
+    if (isTerminalFullscreen) return 'fullscreen-mode';
+    return '';
+  };
+
+  const getTerminalContainerClass = () => {
+    if (isTerminalFullscreen) return 'fullscreen';
+    if (isTerminalExpanded) return 'expanded';
+    return 'collapsed';
   };
 
   return (
-    <div className="terminal-page">
-      <h1>SSH Terminal</h1>
+    <div className={`terminal-page ${getPageClass()}`}>
+      {/* Header - Hidden in fullscreen */}
+      {!isTerminalFullscreen && (
+        <h1>SSH Terminal</h1>
+      )}
       
-      {/* Active Containers Panel - Expands when terminal is collapsed */}
-      <div className={`active-containers-panel ${isTerminalExpanded ? 'normal' : 'expanded'}`}>
-        <ActiveContainersPanel />
-      </div>
+      {/* Active Containers Panel - Expands when terminal is collapsed, hidden in fullscreen */}
+      {!isTerminalFullscreen && (
+        <div className={`active-containers-panel ${isTerminalExpanded ? 'normal' : 'expanded'}`}>
+          <ActiveContainersPanel />
+        </div>
+      )}
 
       {/* Terminal Container - Slides to bottom when collapsed */}
-      <div className={`terminal-container ${isTerminalExpanded ? 'expanded' : 'collapsed'}`}>
+      <div className={`terminal-container ${getTerminalContainerClass()}`}>
         {/* Terminal Toggle Button - Inside terminal container */}
         <div className="terminal-toggle-container">
           <button 
@@ -109,7 +134,40 @@ const TerminalComponent = () => {
               {isTerminalExpanded ? 'Hide Terminal' : 'Show Terminal'}
             </span>
           </button>
+
+          {/* Terminal Controls - Positioned absolutely when expanded */}
+          {isTerminalExpanded && (
+            <div className="terminal-controls">
+              <button 
+                className="control-btn minimize-btn"
+                onClick={minimizeTerminal}
+                title="Minimize (Half Screen)"
+                style={{ display: isTerminalFullscreen ? 'flex' : 'none' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 12L18 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+              
+              <button 
+                className="control-btn fullscreen-btn"
+                onClick={toggleFullscreen}
+                title={isTerminalFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+              >
+                {isTerminalFullscreen ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 3V5H5V8H3V5C3 3.89543 3.89543 3 5 3H8ZM16 3H19C20.1046 3 21 3.89543 21 5V8H19V5H16V3ZM21 16V19C21 20.1046 20.1046 21 19 21H16V19H19V16H21ZM8 21H5C3.89543 21 3 20.1046 3 19V16H5V19H8V21Z" fill="currentColor"/>
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 7H5V5H8V3H5C3.89543 3 3 3.89543 3 5V7ZM3 17V19C3 20.1046 3.89543 21 5 21H8V19H5V17H3ZM16 3V5H19V7H21V5C21 3.89543 20.1046 3 19 3H16ZM19 17V19H16V21H19C20.1046 21 21 20.1046 21 19V17H19Z" fill="currentColor"/>
+                  </svg>
+                )}
+              </button>
+            </div>
+          )}
         </div>
+
         {/* Fixed Tab Bar - Always visible */}
         <div className="tab-bar">
           {terminals.map(tab => (
@@ -201,8 +259,8 @@ const TerminalComponent = () => {
         )}
       </div>
 
-      {/* Add the Chatbot component  */}
-      <EnhancedChatbot />
+      {/* Add the Chatbot component - Hidden in fullscreen */}
+      {!isTerminalFullscreen && <EnhancedChatbot />}
     </div>
   );
 };
