@@ -90,6 +90,23 @@ const ActiveContainersPanel = () => {
     }
   };
 
+  // UPDATED: Enhanced port display and copy functionality
+  const copyPortToClipboard = async (port, containerName) => {
+    try {
+      await navigator.clipboard.writeText(port.toString());
+      alert(`Port ${port} copied to clipboard!\nUse this port in the SSH connection form.`);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = port.toString();
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert(`Port ${port} copied to clipboard!\nUse this port in the SSH connection form.`);
+    }
+  };
+
   // Helper function to get the public port
   const getPublicPort = (container) => {
     try {
@@ -177,9 +194,20 @@ const ActiveContainersPanel = () => {
                     <span className="info-label">Status:</span>
                     <span className={`status-badge ${state.toLowerCase()}`}>{status}</span>
                   </div>
+                  {/* UPDATED: Enhanced port display */}
                   <div className="info-row">
-                    <span className="info-label">Port:</span>
-                    <span className="port-value">{publicPort}</span>
+                    <span className="info-label">SSH Port:</span>
+                    <span 
+                      className="port-value clickable-port" 
+                      onClick={() => copyPortToClipboard(publicPort, name)}
+                      title="Click to copy port number"
+                      style={{ 
+                        cursor: 'pointer',
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      {publicPort} 📋
+                    </span>
                   </div>
                   <div className="info-row">
                     <span className="info-label">Created:</span>
@@ -187,10 +215,14 @@ const ActiveContainersPanel = () => {
                   </div>
                 </div>
 
-                {/* Quick Actions */}
+                {/* UPDATED: Enhanced Quick Actions */}
                 <div className="container-actions">
-                  <button className="action-btn connect-btn" title="Connect via SSH">
-                    🔗 Connect
+                  <button 
+                    className="action-btn connect-btn" 
+                    onClick={() => copyPortToClipboard(publicPort, name)}
+                    title={`Copy SSH port ${publicPort} to clipboard`}
+                  >
+                    📋 Copy Port {publicPort}
                   </button>
                   <button className="action-btn logs-btn" title="View Logs">
                     📋 Logs

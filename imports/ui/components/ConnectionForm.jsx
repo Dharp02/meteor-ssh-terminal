@@ -1,4 +1,4 @@
-// imports/ui/components/ConnectionForm.jsx
+// imports/ui/components/ConnecctionForm.jsx
 import React, { useState } from 'react';
 
 const ConnectionForm = ({
@@ -29,10 +29,21 @@ const ConnectionForm = ({
     return date.toLocaleString();
   };
 
+  // UPDATED: Enhanced validation function with port validation
   const validateForm = () => {
-    const { host, username, password, privateKey, useKeyAuth } = serverInfo;
+    const { host, username, password, privateKey, useKeyAuth, port } = serverInfo;
     
     if (!host.trim() || !username.trim()) {
+      return false;
+    }
+
+    // Enhanced port validation
+    if (!port || port.toString().trim() === '') {
+      return false;
+    }
+
+    const portNum = parseInt(port);
+    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
       return false;
     }
     
@@ -57,6 +68,24 @@ const ConnectionForm = ({
     if (isConnecting) return '#f39c12';
     if (isConnected) return '#2ecc71';
     return '#e74c3c';
+  };
+
+  // UPDATED: Port validation helper
+  const getPortValidationMessage = () => {
+    if (!serverInfo.port || serverInfo.port.toString().trim() === '') {
+      return 'Port is required';
+    }
+    
+    const portNum = parseInt(serverInfo.port);
+    if (isNaN(portNum)) {
+      return 'Port must be a number';
+    }
+    
+    if (portNum < 1 || portNum > 65535) {
+      return 'Port must be between 1 and 65535';
+    }
+    
+    return null;
   };
 
   return (
@@ -145,19 +174,34 @@ const ConnectionForm = ({
               />
             </div>
             
+            {/* UPDATED: Enhanced port input with validation */}
             <div className="input-group port-group">
-              <label htmlFor="port">Port</label>
+              <label htmlFor="port">Port *</label>
               <input
                 id="port"
                 type="number"
                 name="port"
                 value={serverInfo.port}
                 onChange={onInputChange}
-                placeholder="22"
+                placeholder="Container port (required)"
                 min="1"
                 max="65535"
                 disabled={isConnected}
+                required
+                style={{
+                  fontFamily: 'Courier New, monospace',
+                  fontWeight: 'bold',
+                  borderColor: getPortValidationMessage() ? '#e74c3c' : '#ddd'
+                }}
               />
+              {getPortValidationMessage() && (
+                <small className="input-error" style={{ color: '#e74c3c' }}>
+                  {getPortValidationMessage()}
+                </small>
+              )}
+              <small className="input-hint">
+                Enter the SSH port for your container (check Active Containers panel)
+              </small>
             </div>
           </div>
 
@@ -346,6 +390,7 @@ const ConnectionForm = ({
                 className="connect-btn"
                 onClick={handleConnect}
                 disabled={!validateForm() || isConnecting}
+                title={!validateForm() ? 'Please fill in all required fields with valid values' : 'Connect to SSH server'}
               >
                 {isConnecting ? (
                   <>
@@ -365,7 +410,6 @@ const ConnectionForm = ({
                 type="button"
                 className="test-connection-btn"
                 onClick={() => {
-                  // Could implement a test connection feature
                   console.log('Test connection feature - to be implemented');
                 }}
                 disabled={!validateForm() || isConnecting}
@@ -375,15 +419,16 @@ const ConnectionForm = ({
             )}
           </div>
 
-          {/* Connection Tips */}
+          {/* UPDATED: Enhanced connection tips */}
           <div className="connection-tips">
             <h4>💡 Connection Tips</h4>
             <ul>
-              <li>Use SSH keys for better security instead of passwords</li>
-              <li>Default SSH port is 22, but many servers use custom ports</li>
-              <li>Sessions automatically expire after 30 minutes of inactivity</li>
-              <li>Use Ctrl+Shift+C/V for copy/paste in the terminal</li>
-              <li>Enable compression for slower network connections</li>
+              <li><strong>Port Required:</strong> You must enter the container's SSH port number</li>
+              <li><strong>Find Ports:</strong> Check the "Active Containers" panel for port numbers</li>
+              <li><strong>SSH Keys:</strong> Use SSH keys for better security instead of passwords</li>
+              <li><strong>Container Ports:</strong> Each container has a unique mapped port</li>
+              <li><strong>Sessions:</strong> Automatically expire after 30 minutes of inactivity</li>
+              <li><strong>Copy/Paste:</strong> Use Ctrl+Shift+C/V for copy/paste in the terminal</li>
             </ul>
           </div>
         </div>

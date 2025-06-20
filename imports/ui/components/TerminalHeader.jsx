@@ -18,6 +18,36 @@ const TerminalHeader = ({
     const date = new Date(dateString);
     return date.toLocaleString();
   };
+
+  // UPDATED: Enhanced validation function
+  const validateForm = () => {
+    const { host, username, password, privateKey, useKeyAuth, port } = serverInfo;
+    
+    // Validate required fields
+    if (!host.trim() || !username.trim()) {
+      return false;
+    }
+
+    // Validate port
+    if (!port || port.toString().trim() === '') {
+      return false;
+    }
+
+    const portNum = parseInt(port);
+    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+      return false;
+    }
+    
+    if (useKeyAuth && !privateKey.trim()) {
+      return false;
+    }
+    
+    if (!useKeyAuth && !password.trim()) {
+      return false;
+    }
+    
+    return true;
+  };
   
   return (
     <div className="connection-controls">
@@ -75,6 +105,7 @@ const TerminalHeader = ({
             value={serverInfo.host} 
             onChange={handleInputChange}
             placeholder="IP address or hostname"
+            required
           />
           
           <label>Port:</label>
@@ -83,7 +114,14 @@ const TerminalHeader = ({
             name="port" 
             value={serverInfo.port} 
             onChange={handleInputChange}
-            placeholder="22"
+            placeholder="Container port (required)"
+            min="1"
+            max="65535"
+            required
+            style={{
+              fontFamily: 'Courier New, monospace',
+              fontWeight: 'bold'
+            }}
           />
         </div>
         
@@ -95,6 +133,7 @@ const TerminalHeader = ({
             value={serverInfo.username} 
             onChange={handleInputChange}
             placeholder="username"
+            required
           />
         </div>
         
@@ -123,6 +162,7 @@ const TerminalHeader = ({
               onChange={handleInputChange}
               placeholder="Paste your private key here"
               rows={3}
+              required
             />
             
             <label>Passphrase:</label>
@@ -143,6 +183,7 @@ const TerminalHeader = ({
               value={serverInfo.password}
               onChange={handleInputChange}
               placeholder="SSH password"
+              required
             />
           </div>
         )}
@@ -159,11 +200,24 @@ const TerminalHeader = ({
             <button 
               className="connect-button" 
               onClick={connectSSH} 
-              disabled={!isConnected}
+              disabled={!validateForm()}
+              title={!validateForm() ? 'Please fill in all required fields with valid values' : 'Connect to SSH server'}
             >
               Connect
             </button>
           )}
+        </div>
+
+        {/* UPDATED: Enhanced connection tips */}
+        <div className="connection-tips">
+          <h4>💡 Connection Tips</h4>
+          <ul>
+            <li><strong>Port Required:</strong> Enter the exact container port (check container panel)</li>
+            <li><strong>Security:</strong> Use SSH keys for better security instead of passwords</li>
+            <li><strong>Container Ports:</strong> Usually shown in the "Active Containers" panel</li>
+            <li><strong>Common Ports:</strong> SSH typically uses 22, but containers may use different ports</li>
+            <li><strong>Sessions:</strong> Automatically expire after 30 minutes of inactivity</li>
+          </ul>
         </div>
       </div>
     </div>

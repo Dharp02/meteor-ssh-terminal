@@ -1,5 +1,3 @@
-
-
 import { Meteor } from 'meteor/meteor';
 import { WebApp } from 'meteor/webapp';
 import { Server } from 'socket.io';
@@ -10,9 +8,9 @@ import Docker from 'dockerode';
 import bodyParser from 'body-parser';
 import './aichat.js';
 import dotenv from 'dotenv';
-const result=dotenv.config()
-console.log(result)
 
+const result = dotenv.config();
+console.log(result);
 
 WebApp.connectHandlers.use(bodyParser.json());
 
@@ -157,7 +155,6 @@ WebApp.connectHandlers.use('/api/create-container', async (req, res) => {
     const containerName = `ssh-session-${Date.now()}`;
     const container = await docker.createContainer({
       Image: 'ssh-terminal',
-      
       name: containerName,
       Tty: true,
       ExposedPorts: { '22/tcp': {} },
@@ -234,58 +231,6 @@ Meteor.startup(() => {
     cors: { origin: '*', methods: ['GET', 'POST'] }
   });
 
-  // Function to get an available container instead of creating a new one
-  async function getAvailableContainer() {
-    try {
-      // Get list of running containers
-      const containers = await docker.listContainers({ all: false });
-      
-      // Filter for ssh-terminal containers that are running
-      const sshContainers = containers.filter(container => 
-        container.Image === 'ssh-terminal' && 
-        container.State === 'running'
-      );
-
-      if (sshContainers.length === 0) {
-        throw new Error('No SSH containers available. Please create a container first.');
-      }
-
-      // Find a container that's not currently being used
-      // Check if any containers are not in active sessions
-      let availableContainer = sshContainers.find(containerInfo => {
-        const isInUse = Array.from(terminalSessions.values()).some(session => 
-          session.containerId === containerInfo.Id
-        );
-        return !isInUse;
-      });
-
-      if (!availableContainer) {
-        // If all containers are in use, use the first one (allow multiple connections to same container)
-        console.log('All containers in use, connecting to first available container');
-        availableContainer = sshContainers[0];
-      }
-
-      // Get container details
-      const container = docker.getContainer(availableContainer.Id);
-      const data = await container.inspect();
-      const mapped = data?.NetworkSettings?.Ports?.['22/tcp'];
-      
-      if (!mapped || !mapped[0]?.HostPort) {
-        throw new Error('Could not retrieve mapped HostPort for SSH container');
-      }
-
-      return {
-        id: availableContainer.Id,
-        name: availableContainer.Names[0].replace('/', ''),
-        host: 'localhost',
-        port: parseInt(mapped[0].HostPort)
-      };
-    } catch (error) {
-      console.error('Error getting available container:', error);
-      throw error;
-    }
-  }
-
   // Auto-expiry function for sessions
   function startAutoExpiry(socketId, durationMs = 10 * 60 * 1000) {
     const session = terminalSessions.get(socketId);
@@ -313,9 +258,36 @@ Meteor.startup(() => {
     console.log(`Client connected: ${socket.id}`);
     let sessionLog = [];
 
-    // Updated startSession handler - now connects to existing containers
+    // UPDATED: Enhanced startSession handler with port validation
     socket.on('startSession', async (credentials) => {
       const ip = socket.handshake.address || socket.conn.remoteAddress || 'unknown';
+
+      // UPDATED: Validate port input
+      if (!credentials.port || isNaN(credentials.port) || credentials.port < 1 || credentials.port > 65535) {
+        socket.emit('output', '\r\n\x1b[31mError: Invalid port number. Please enter a valid port (1-65535)\x1b[0m\r\n');
+        return;
+      }
+
+      // Validate other required fields
+      if (!credentials.host || !credentials.host.trim()) {
+        socket.emit('output', '\r\n\x1b[31mError: Host is required\x1b[0m\r\n');
+        return;
+      }
+
+      if (!credentials.username || !credentials.username.trim()) {
+        socket.emit('output', '\r\n\x1b[31mError: Username is required\x1b[0m\r\n');
+        return;
+      }
+
+      if (!credentials.useKeyAuth && (!credentials.password || !credentials.password.trim())) {
+        socket.emit('output', '\r\n\x1b[31mError: Password is required when not using key authentication\x1b[0m\r\n');
+        return;
+      }
+
+      if (credentials.useKeyAuth && (!credentials.privateKey || !credentials.privateKey.trim())) {
+        socket.emit('output', '\r\n\x1b[31mError: Private key is required when using key authentication\x1b[0m\r\n');
+        return;
+      }
 
       // Audit log: user connected
       try {
@@ -330,14 +302,8 @@ Meteor.startup(() => {
       }
 
       try {
-        // Get an available container instead of creating a new one
-        const containerInfo = await getAvailableContainer();
-        
-        // Use the container's host and port
-        credentials.port = containerInfo.port;
-        credentials.host = containerInfo.host;
-
-        console.log(`Connecting to existing container: ${containerInfo.name} on port ${containerInfo.port}`);
+        // UPDATED: Use user-provided port directly
+        console.log(`Attempting connection to ${credentials.host}:${credentials.port}`);
 
         const conn = new Client();
         const sessionStartTime = new Date();
@@ -347,7 +313,7 @@ Meteor.startup(() => {
           sessionId = await SessionLogs.insertAsync({
             socketId: socket.id,
             host: credentials.host,
-            port: credentials.port,
+            port: parseInt(credentials.port), // Use user-provided port
             username: credentials.username,
             startTime: sessionStartTime,
             status: 'connecting'
@@ -367,7 +333,7 @@ Meteor.startup(() => {
             stream: null,
             sessionId,
             sessionStartTime,
-            containerId: containerInfo.id,
+            containerId: null, // No specific container tracking needed
             cleanedUp: false,
             expiryTimeout
           });
@@ -422,7 +388,6 @@ Meteor.startup(() => {
               if (session && !session.cleanedUp) {
                 session.cleanedUp = true;
                 if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
-                
               }
 
               terminalSessions.delete(socket.id);
@@ -448,9 +413,10 @@ Meteor.startup(() => {
         });
 
         try {
+          // UPDATED: Use user-provided port in connection options
           const connectionOptions = {
             host: credentials.host,
-            port: credentials.port || 22,
+            port: parseInt(credentials.port), // Use user-provided port
             username: credentials.username,
             readyTimeout: 30000,
             keepaliveInterval: 30000
@@ -473,9 +439,9 @@ Meteor.startup(() => {
             $set: { status: 'error', errorMessage: error.message, endTime: new Date() }
           }).catch(console.error);
         }
-      } catch (containerError) {
-        console.error('Container error:', containerError);
-        socket.emit('output', `\r\n\x1b[31mContainer Error: ${containerError.message}\x1b[0m\r\n`);
+      } catch (connectionError) {
+        console.error('Connection error:', connectionError);
+        socket.emit('output', `\r\n\x1b[31mConnection Error: ${connectionError.message}\x1b[0m\r\n`);
       }
     });
 
@@ -501,7 +467,6 @@ Meteor.startup(() => {
         session.cleanedUp = true;
         if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
         
-        // Containers persist for reuse
         if (session.conn) {
           session.conn.end();
         }

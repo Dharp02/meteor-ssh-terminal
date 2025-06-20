@@ -12,9 +12,10 @@ const TerminalInstance = ({ tabId }) => {
   const [remainingTime, setRemainingTime] = useState(null);
   const [logData, setLogData] = useState('');
 
+  // UPDATED: Remove default port 22
   const [serverInfo, setServerInfo] = useState({
     host: 'localhost',
-    port: 22,
+    port: '', // Changed from 22 to empty string
     username: 'root',
     password: '',
     useKeyAuth: false,
@@ -107,13 +108,46 @@ const TerminalInstance = ({ tabId }) => {
     return () => clearInterval(timer);
   }, [remainingTime]);
 
+  // UPDATED: Enhanced connectSSH function with port validation
   const connectSSH = () => {
-    const port = serverInfo.port || 22;
+    // Validate port input
+    if (!serverInfo.port || serverInfo.port.toString().trim() === '') {
+      term.current.writeln('\x1b[31mError: Port number is required\x1b[0m');
+      return;
+    }
+
+    const port = parseInt(serverInfo.port);
+    
+    if (isNaN(port) || port < 1 || port > 65535) {
+      term.current.writeln('\x1b[31mError: Please enter a valid port number (1-65535)\x1b[0m');
+      return;
+    }
+
+    // Validate other required fields
+    if (!serverInfo.host.trim()) {
+      term.current.writeln('\x1b[31mError: Host is required\x1b[0m');
+      return;
+    }
+
+    if (!serverInfo.username.trim()) {
+      term.current.writeln('\x1b[31mError: Username is required\x1b[0m');
+      return;
+    }
+
+    if (!serverInfo.useKeyAuth && !serverInfo.password.trim()) {
+      term.current.writeln('\x1b[31mError: Password is required when not using key authentication\x1b[0m');
+      return;
+    }
+
+    if (serverInfo.useKeyAuth && !serverInfo.privateKey.trim()) {
+      term.current.writeln('\x1b[31mError: Private key is required when using key authentication\x1b[0m');
+      return;
+    }
 
     term.current.writeln(`\x1b[33mConnecting to ${serverInfo.host}:${port} as ${serverInfo.username}...\x1b[0m`);
     socket.current.emit('startSession', {
       host: serverInfo.host,
-      port,
+      port: port, // Use validated port
       username: serverInfo.username,
       useKeyAuth: serverInfo.useKeyAuth,
       password: !serverInfo.useKeyAuth ? serverInfo.password : undefined,
@@ -146,18 +180,65 @@ const TerminalInstance = ({ tabId }) => {
     <>
       {/* Fixed Terminal Header (connection form) */}
       <div className="terminal-header">
-        <input type="text" name="host" placeholder="Host" value={serverInfo.host} onChange={handleInputChange} />
-        <input type="number" name="port" placeholder="Port" value={serverInfo.port} onChange={handleInputChange} />
-        <input type="text" name="username" placeholder="Username" value={serverInfo.username} onChange={handleInputChange} />
+        <input 
+          type="text" 
+          name="host" 
+          placeholder="Host" 
+          value={serverInfo.host} 
+          onChange={handleInputChange} 
+        />
+        <input 
+          type="number" 
+          name="port" 
+          placeholder="Port (required)" 
+          value={serverInfo.port} 
+          onChange={handleInputChange}
+          min="1"
+          max="65535"
+          required
+          style={{
+            fontFamily: 'Courier New, monospace',
+            fontWeight: 'bold'
+          }}
+        />
+        <input 
+          type="text" 
+          name="username" 
+          placeholder="Username" 
+          value={serverInfo.username} 
+          onChange={handleInputChange} 
+        />
         <label>
-          <input type="checkbox" name="useKeyAuth" checked={serverInfo.useKeyAuth} onChange={handleInputChange} /> Use SSH Key
+          <input 
+            type="checkbox" 
+            name="useKeyAuth" 
+            checked={serverInfo.useKeyAuth} 
+            onChange={handleInputChange} 
+          /> Use SSH Key
         </label>
         {!serverInfo.useKeyAuth ? (
-          <input type="password" name="password" placeholder="Password" value={serverInfo.password} onChange={handleInputChange} />
+          <input 
+            type="password" 
+            name="password" 
+            placeholder="Password" 
+            value={serverInfo.password} 
+            onChange={handleInputChange} 
+          />
         ) : (
           <>
-            <textarea name="privateKey" placeholder="Private Key" value={serverInfo.privateKey} onChange={handleInputChange}></textarea>
-            <input type="password" name="passphrase" placeholder="Passphrase" value={serverInfo.passphrase} onChange={handleInputChange} />
+            <textarea 
+              name="privateKey" 
+              placeholder="Private Key" 
+              value={serverInfo.privateKey} 
+              onChange={handleInputChange}
+            ></textarea>
+            <input 
+              type="password" 
+              name="passphrase" 
+              placeholder="Passphrase (if required)" 
+              value={serverInfo.passphrase} 
+              onChange={handleInputChange} 
+            />
           </>
         )}
         <button onClick={connectSSH}>Connect</button>
