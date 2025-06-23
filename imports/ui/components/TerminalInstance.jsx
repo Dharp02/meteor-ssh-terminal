@@ -4,7 +4,7 @@ import { FitAddon } from 'xterm-addon-fit';
 import io from 'socket.io-client';
 import 'xterm/css/xterm.css';
 
-const TerminalInstance = ({ tabId }) => {
+const TerminalInstance = ({ tabId, initialConnection }) => {
   const terminalRef = useRef(null);
   const term = useRef(null);
   const fitAddon = useRef(new FitAddon());
@@ -12,12 +12,12 @@ const TerminalInstance = ({ tabId }) => {
   const [remainingTime, setRemainingTime] = useState(null);
   const [logData, setLogData] = useState('');
 
-  // UPDATED: Remove default port 22
+  // UPDATED: Use initial connection if provided, otherwise use defaults
   const [serverInfo, setServerInfo] = useState({
-    host: 'localhost',
-    port: '', // Changed from 22 to empty string
-    username: 'root',
-    password: '',
+    host: initialConnection?.host || 'localhost',
+    port: initialConnection?.port || '', // Use provided port or empty string
+    username: initialConnection?.username || 'root',
+    password: initialConnection?.password || '',
     useKeyAuth: false,
     privateKey: '',
     passphrase: ''
@@ -68,6 +68,14 @@ const TerminalInstance = ({ tabId }) => {
 
     socket.current.on('connect', () => {
       term.current.writeln('\x1b[32mConnected to WebSocket server\x1b[0m');
+      
+      // Auto-connect if initial connection info is provided
+      if (initialConnection && initialConnection.port && initialConnection.password) {
+        term.current.writeln('\x1b[33mAuto-connecting to container...\x1b[0m');
+        setTimeout(() => {
+          connectSSH();
+        }, 1000);
+      }
     });
 
     socket.current.on('output', data => {
@@ -93,7 +101,7 @@ const TerminalInstance = ({ tabId }) => {
       term.current.dispose();
       resizeObserver.disconnect();
     };
-  }, [tabId]);
+  }, [tabId, initialConnection]); // Add initialConnection to dependencies
 
   //Timer logic
   useEffect(() => {

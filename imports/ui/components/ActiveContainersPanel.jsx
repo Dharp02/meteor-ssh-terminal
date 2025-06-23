@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const ActiveContainersPanel = () => {
+const ActiveContainersPanel = ({ onConnectToContainer }) => {
   const [containers, setContainers] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -219,13 +219,24 @@ const ActiveContainersPanel = () => {
                 <div className="container-actions">
                   <button 
                     className="action-btn connect-btn" 
-                    onClick={() => copyPortToClipboard(publicPort, name)}
-                    title={`Copy SSH port ${publicPort} to clipboard`}
+                    onClick={() => {
+                      // If the callback is provided, use it to create a pre-filled terminal
+                      if (onConnectToContainer) {
+                        onConnectToContainer({
+                          id: containerId,
+                          name: name,
+                          port: publicPort,
+                          host: 'localhost'
+                        });
+                      } else {
+                        // Fallback to copying port
+                        copyPortToClipboard(publicPort, name);
+                      }
+                    }}
+                    title={`Connect to ${name} on port ${publicPort}`}
+                    style={{ width: '100%' }}  // Make the button full width since it's the only one
                   >
-                    📋 Copy Port {publicPort}
-                  </button>
-                  <button className="action-btn logs-btn" title="View Logs">
-                    📋 Logs
+                    🔌 Connect
                   </button>
                 </div>
               </div>

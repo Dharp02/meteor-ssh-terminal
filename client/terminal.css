@@ -1174,3 +1174,255 @@ body {
   background-color: #2ecc71;
   transform: scale(1.1);
 }
+
+/* Modal Styles for Container Connection */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background-color: #2c3e50;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  max-width: 480px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background-color: #34495e;
+  border-bottom: 1px solid #4a5f7a;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #ecf0f1;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #bdc3c7;
+  cursor: pointer;
+  font-size: 24px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.modal-body {
+  padding: 24px;
+  color: #ecf0f1;
+}
+
+.connection-details {
+  background-color: #34495e;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border-left: 4px solid #3498db;
+}
+
+.connection-details p {
+  margin: 8px 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.connection-details strong {
+  color: #3498db;
+  font-weight: 600;
+  display: inline-block;
+  min-width: 80px;
+}
+
+.password-input {
+  margin-top: 20px;
+}
+
+.password-input label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #ecf0f1;
+  font-size: 14px;
+}
+
+.password-input input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #4a5f7a;
+  border-radius: 8px;
+  background-color: #34495e;
+  color: #ecf0f1;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.password-input input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+.password-input input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  background-color: #34495e;
+  border-top: 1px solid #4a5f7a;
+}
+
+.modal-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  min-width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.modal-btn.cancel-btn {
+  background-color: #7f8c8d;
+  color: white;
+}
+
+.modal-btn.cancel-btn:hover:not(:disabled) {
+  background-color: #95a5a6;
+  transform: translateY(-1px);
+}
+
+.modal-btn.connect-btn {
+  background: linear-gradient(145deg, #27ae60, #2ecc71);
+  color: white;
+  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+.modal-btn.connect-btn:hover:not(:disabled) {
+  background: linear-gradient(145deg, #2ecc71, #27ae60);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+/* Updated Container Actions - Single Connect Button */
+.container-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.container-actions .action-btn {
+  flex: 1;
+  max-width: 200px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.container-actions .connect-btn {
+  background: linear-gradient(145deg, #27ae60, #2ecc71);
+  color: white;
+  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+.container-actions .connect-btn:hover:not(:disabled) {
+  background: linear-gradient(145deg, #2ecc71, #27ae60);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+.container-actions .connect-btn:disabled {
+  background: #7f8c8d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Responsive Modal */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 16px;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+  }
+  
+  .modal-btn {
+    width: 100%;
+  }
+  
+  .connection-details {
+    padding: 12px;
+  }
+}
+

@@ -11,12 +11,13 @@ const TerminalComponent = () => {
   const [isTerminalExpanded, setIsTerminalExpanded] = useState(false); // Hidden by default
   const [isTerminalFullscreen, setIsTerminalFullscreen] = useState(false);
 
-  const createNewTerminalTab = () => {
+  const createNewTerminalTab = (connectionInfo = null) => {
     const id = Date.now();
     const newTab = {
       id,
-      title: `Terminal ${terminals.length + 1}`,
-      isEditing: false
+      title: connectionInfo ? `${connectionInfo.name}` : `Terminal ${terminals.length + 1}`,
+      isEditing: false,
+      connectionInfo // Store connection info with the tab
     };
     setTerminals(prev => [...prev, newTab]);
     setActiveTab(id);
@@ -25,6 +26,19 @@ const TerminalComponent = () => {
     if (!isTerminalExpanded) {
       setIsTerminalExpanded(true);
     }
+  };
+
+  // Add a method to handle container connections
+  const connectToContainer = (containerInfo) => {
+    // Create a new tab with pre-filled connection info
+    const connectionInfo = {
+      host: 'localhost',
+      port: containerInfo.port,
+      username: 'root',
+      password: 'password123', // Default password from Dockerfile
+      name: containerInfo.name
+    };
+    createNewTerminalTab(connectionInfo);
   };
 
   const closeTab = (id) => {
@@ -106,7 +120,7 @@ const TerminalComponent = () => {
       {/* Active Containers Panel - Expands when terminal is collapsed, hidden in fullscreen */}
       {!isTerminalFullscreen && (
         <div className={`active-containers-panel ${isTerminalExpanded ? 'normal' : 'expanded'}`}>
-          <ActiveContainersPanel />
+          <ActiveContainersPanel onConnectToContainer={connectToContainer} />
         </div>
       )}
 
@@ -215,7 +229,7 @@ const TerminalComponent = () => {
           ))}
           <button 
             className="add-tab" 
-            onClick={createNewTerminalTab}
+            onClick={() => createNewTerminalTab()}
             title="Add new terminal"
           >
             +
@@ -250,7 +264,8 @@ const TerminalComponent = () => {
                   <TerminalInstance 
                     tabId={tab.id} 
                     label={tab.title} 
-                    onRename={(newTitle) => renameTab(tab.id, newTitle)} 
+                    onRename={(newTitle) => renameTab(tab.id, newTitle)}
+                    initialConnection={tab.connectionInfo}
                   />
                 </div>
               ))
