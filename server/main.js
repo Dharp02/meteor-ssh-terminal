@@ -62,11 +62,6 @@ WebApp.connectHandlers.use('/api/stop-container', async (req, res) => {
       if (session.containerId === containerId) {
         console.log(`Cleaning up SSH session for container ${containerId}`);
         
-        // Clear the expiry timeout
-        if (session.expiryTimeout) {
-          clearTimeout(session.expiryTimeout);
-        }
-        
         // Close the SSH connection
         if (session.conn) {
           session.conn.end();
@@ -231,34 +226,12 @@ Meteor.startup(() => {
     cors: { origin: '*', methods: ['GET', 'POST'] }
   });
 
-  // Auto-expiry function for sessions
-  function startAutoExpiry(socketId, durationMs = 10 * 60 * 1000) {
-    const session = terminalSessions.get(socketId);
-    if (!session) return;
-
-    if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
-
-    session.expiryTimeout = setTimeout(async () => {
-      if (terminalSessions.has(socketId)) {
-        const { conn } = terminalSessions.get(socketId);
-        
-        if (conn) {
-          conn.end();
-        }
-        terminalSessions.delete(socketId);
-        console.log(`Auto-expired session ${socketId} (container kept running)`);
-      }
-    }, durationMs);
-
-    return session.expiryTimeout;
-  }
-
   // Socket.IO connection handling
   io.on('connection', (socket) => {
     console.log(`Client connected: ${socket.id}`);
     let sessionLog = [];
 
-    // UPDATED: Enhanced startSession handler with port validation
+    // UPDATED: Enhanced startSession handler with port validation (timer removed)
     socket.on('startSession', async (credentials) => {
       const ip = socket.handshake.address || socket.conn.remoteAddress || 'unknown';
 
@@ -327,15 +300,13 @@ Meteor.startup(() => {
         conn.on('ready', () => {
           SessionLogs.updateAsync(sessionId, { $set: { status: 'connected' } }).catch(console.error);
 
-          const expiryTimeout = startAutoExpiry(socket.id);
           terminalSessions.set(socket.id, {
             conn,
             stream: null,
             sessionId,
             sessionStartTime,
             containerId: null, // No specific container tracking needed
-            cleanedUp: false,
-            expiryTimeout
+            cleanedUp: false
           });
 
           conn.shell((err, stream) => {
@@ -350,25 +321,19 @@ Meteor.startup(() => {
             const session = terminalSessions.get(socket.id);
             session.stream = stream;
 
-            const remainingTime = session.expiryTimeout
-              ? session.expiryTimeout._idleStart + session.expiryTimeout._idleTimeout - Date.now()
-              : 10 * 60 * 1000;
-
-            socket.emit('sshConnected', { remainingTime });
+            socket.emit('sshConnected', {});
 
             stream.on('data', (data) => {
               const output = data.toString();
               socket.emit('output', output);
               if (sessionLog.length > 1000) sessionLog.shift();
               sessionLog.push({ type: 'output', data: output, timestamp: new Date() });
-              startAutoExpiry(socket.id);
             });
 
             stream.stderr.on('data', (data) => {
               const error = data.toString();
               socket.emit('output', `\x1b[31m${error}\x1b[0m`);
               sessionLog.push({ type: 'error', data: error, timestamp: new Date() });
-              startAutoExpiry(socket.id);
             });
 
             stream.on('close', async () => {
@@ -387,7 +352,6 @@ Meteor.startup(() => {
               const session = terminalSessions.get(socket.id);
               if (session && !session.cleanedUp) {
                 session.cleanedUp = true;
-                if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
               }
 
               terminalSessions.delete(socket.id);
@@ -398,7 +362,6 @@ Meteor.startup(() => {
             socket.on('input', (data) => {
               if (terminalSessions.has(socket.id)) {
                 terminalSessions.get(socket.id).stream.write(data);
-                startAutoExpiry(socket.id);
               }
             });
           });
@@ -449,7 +412,6 @@ Meteor.startup(() => {
       const session = terminalSessions.get(socket.id);
       if (session && !session.cleanedUp) {
         session.cleanedUp = true;
-        if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
         
         if (session.conn) {
           session.conn.end();
@@ -465,7 +427,6 @@ Meteor.startup(() => {
       const session = terminalSessions.get(socket.id);
       if (session && !session.cleanedUp) {
         session.cleanedUp = true;
-        if (session.expiryTimeout) clearTimeout(session.expiryTimeout);
         
         if (session.conn) {
           session.conn.end();
