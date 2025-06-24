@@ -1426,3 +1426,45 @@ body {
   }
 }
 
+/* Terminal Container - Slides to bottom */
+  .terminal-container {
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    z-index: 10;
+  }
+
+  .terminal-container.expanded {
+    flex: 1;
+    min-height: 400px;
+    position: relative;
+    bottom: 0;
+  }
+
+  .terminal-container.collapsed {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    height: 60px;
+    flex: none;
+    z-index: 1000;
+    transform: translateY(0);
+    overflow: hidden; /* Hide the terminal content */
+  }
+
+  .terminal-container.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1001;
+    border-radius: 0;
+    box-shadow: none;
+    flex: none;
+  }
