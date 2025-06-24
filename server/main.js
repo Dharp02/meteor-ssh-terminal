@@ -8,6 +8,10 @@ import Docker from 'dockerode';
 import bodyParser from 'body-parser';
 import './aichat.js';
 import dotenv from 'dotenv';
+import multiparty from 'multiparty';
+import fs from 'fs';
+import tar from 'tar-fs';
+import path from 'path';
 
 const result = dotenv.config();
 console.log(result);
@@ -17,6 +21,69 @@ WebApp.connectHandlers.use(bodyParser.json());
 const docker = new Docker({ host: 'localhost', port: 2375 });
 let io;
 const terminalSessions = new Map();
+
+WebApp.connectHandlers.use('/api/import-dockerfile', async (req, res, next) => {
+  if (req.method !== 'POST') {
+    res.writeHead(405, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ message: 'Method Not Allowed' }));
+    return;
+  }
+
+  const form = new multiparty.Form();
+
+  form.parse(req, async (err, fields, files) => {
+    if (err) {
+      console.error('Error parsing form:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ message: 'Error parsing form data' }));
+      return;
+    }
+
+    const dockerfile = files.dockerfile?.[0];
+    const imageName = fields.imageName?.[0] || `custom-ssh-${Date.now()}`;
+
+    if (!dockerfile || !dockerfile.path) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ message: 'Missing Dockerfile' }));
+      return;
+    }
+
+    try {
+      const dockerfileDir = path.dirname(dockerfile.path);
+      const dockerfilePath = path.join(dockerfileDir, 'Dockerfile');
+      fs.renameSync(dockerfile.path, dockerfilePath);
+
+      const tarStream = tar.pack(dockerfileDir, {
+        entries: ['Dockerfile']
+      });
+
+      const stream = await docker.buildImage(tarStream, { t: imageName });
+
+      let output = '';
+      stream.on('data', (chunk) => {
+        output += chunk.toString();
+      });
+
+      stream.on('end', () => {
+        console.log(`Docker image built: ${imageName}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ containerName: imageName }));
+      });
+
+      stream.on('error', (error) => {
+        console.error('Docker build error:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: error.message }));
+      });
+
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ message: err.message }));
+    }
+  });
+});
+
 
 // API endpoint to stop and remove containers
 WebApp.connectHandlers.use('/api/stop-container', async (req, res) => {

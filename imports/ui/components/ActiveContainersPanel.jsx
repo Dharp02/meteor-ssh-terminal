@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 const ActiveContainersPanel = ({ onConnectToContainer }) => {
   const [containers, setContainers] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const fetchContainers = async () => {
@@ -134,13 +136,78 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
           <h3>Active Containers</h3>
           <span className="container-count">{containers.length} running</span>
         </div>
-        <button
-          onClick={createContainer}
-          disabled={isCreating}
-          className="create-container-btn"
-        >
-          {isCreating ? 'Creating...' : 'Create'}
-        </button>
+        <div className="header-buttons">
+          {/* NEW: Import Icon-Only Button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className="import-dockerfile-icon-btn"
+            title="Import Dockerfile"
+          >
+            {isImporting ? '⏳' : '📄'}
+          </button>
+          <button
+            onClick={createContainer}
+            disabled={isCreating}
+            className="create-container-btn"
+          >
+            {isCreating ? 'Creating...' : 'Create'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".dockerfile,.txt,Dockerfile"
+            onChange={async (event) => {
+              const file = event.target.files[0];
+              if (!file) return;
+
+              setIsImporting(true);
+
+              try {
+                const textContent = await file.text(); // Read .txt/.dockerfile content
+                const blob = new Blob([textContent], { type: 'text/plain' });
+
+                const dockerfile = new File([blob], 'Dockerfile', { type: 'text/plain' });
+
+                const formData = new FormData();
+                formData.append('dockerfile', dockerfile); // always named Dockerfile
+                formData.append('imageName', `custom-ssh-${Date.now()}`);
+
+                const response = await fetch('/api/import-dockerfile', {
+                  method: 'POST',
+                  body: formData
+                });
+
+                if (response.ok) {
+                  const result = await response.json();
+                  alert(`Custom container created: ${result.containerName}`);
+
+                  const res = await fetch('/api/active-containers');
+                  const data = await res.json();
+                  setContainers(data);
+                } else {
+                  let errorMsg = 'Unknown error occurred while importing Dockerfile.';
+                  try {
+                    const error = await response.json();
+                    errorMsg = error.message || errorMsg;
+                  } catch (e) {
+                    errorMsg = response.statusText;
+                  }
+                  alert(`Failed to import Dockerfile: ${errorMsg}`);
+                }
+              } catch (err) {
+                alert(`Error processing Dockerfile: ${err.message}`);
+              } finally {
+                setIsImporting(false);
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                }
+              }
+            }}
+            style={{ display: 'none' }}
+          />
+
+        </div>
       </div>
 
       {/* Containers Grid */}
@@ -165,10 +232,7 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
             const publicPort = getPublicPort(container);
 
             return (
-              <div
-                key={containerId}
-                className="container-card"
-              >
+              <div key={containerId} className="container-card">
                 {/* Container Header */}
                 <div className="container-card-header">
                   <div className="container-name">
@@ -201,10 +265,7 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
                       className="port-value clickable-port" 
                       onClick={() => copyPortToClipboard(publicPort, name)}
                       title="Click to copy port number"
-                      style={{ 
-                        cursor: 'pointer',
-                        textDecoration: 'underline'
-                      }}
+                      style={{ cursor: 'pointer', textDecoration: 'underline' }}
                     >
                       {publicPort} 📋
                     </span>
