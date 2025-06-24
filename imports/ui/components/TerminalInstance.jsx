@@ -9,7 +9,6 @@ const TerminalInstance = ({ tabId, initialConnection }) => {
   const term = useRef(null);
   const fitAddon = useRef(new FitAddon());
   const socket = useRef(null);
-  const [remainingTime, setRemainingTime] = useState(null);
   const [logData, setLogData] = useState('');
 
   // UPDATED: Use initial connection if provided, otherwise use defaults
@@ -86,9 +85,6 @@ const TerminalInstance = ({ tabId, initialConnection }) => {
     socket.current.on('sshConnected', (data) => {
       console.log(' sshConnected received');
       term.current.writeln('\x1b[32mSSH Connection established\x1b[0m');
-      if (data.remainingTime) {
-        setRemainingTime(Math.floor(data.remainingTime / 1000));
-      }
     });
 
     term.current.onData(data => {
@@ -102,19 +98,6 @@ const TerminalInstance = ({ tabId, initialConnection }) => {
       resizeObserver.disconnect();
     };
   }, [tabId, initialConnection]); // Add initialConnection to dependencies
-
-  //Timer logic
-  useEffect(() => {
-    if (remainingTime === null) return;
-    const timer = setInterval(() => {
-      setRemainingTime(prev => {
-        if (prev > 0) return prev - 1;
-        clearInterval(timer);
-        return 0;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [remainingTime]);
 
   // UPDATED: Enhanced connectSSH function with port validation
   const connectSSH = () => {
@@ -252,21 +235,6 @@ const TerminalInstance = ({ tabId, initialConnection }) => {
         <button onClick={connectSSH}>Connect</button>
         <button onClick={downloadLog}>Download Log</button>
         <button onClick={clearTerminal}>Clear</button>
-        
-        {/* Session Timer */}
-        {remainingTime !== null && (
-          <div style={{
-            color: '#0f0',
-            fontSize: '12px',
-            fontFamily: 'monospace',
-            background: '#111',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            marginLeft: 'auto'
-          }}>
-             {remainingTime}s remaining
-          </div>
-        )}
       </div>
 
       {/* Scrollable Terminal Instance - ONLY THIS PART SCROLLS */}
