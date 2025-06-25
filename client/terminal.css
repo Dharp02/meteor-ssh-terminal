@@ -1426,3 +1426,16 @@ body {
   }
 }
 
+.import-dockerfile-icon-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  color: #ecf0f1;
+  transition: transform 0.2s;
+}
+
+.import-dockerfile-icon-btn:hover {
+  transform: scale(1.2);
+}
