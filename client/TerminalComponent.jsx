@@ -236,42 +236,40 @@ const TerminalComponent = () => {
           </button>
         </div>
 
-        {/* Terminal Content Area - Only show when expanded */}
-        {isTerminalExpanded && (
-          <div className="terminal-content">
-            {terminals.length === 0 ? (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                height: '100%',
-                color: '#7f8c8d',
-                fontSize: '18px'
-              }}>
-                Click the + button to create a new terminal
+        {/* Terminal Content Area - Always mounted but hidden when collapsed */}
+        <div className="terminal-content" style={{ display: isTerminalExpanded ? 'block' : 'none' }}>
+          {terminals.length === 0 ? (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              height: '100%',
+              color: '#7f8c8d',
+              fontSize: '18px'
+            }}>
+              Click the + button to create a new terminal
+            </div>
+          ) : (
+            terminals.map(tab => (
+              <div 
+                key={tab.id} 
+                className="terminal-tab-content"
+                style={{ 
+                  display: activeTab === tab.id ? 'flex' : 'none',
+                  flexDirection: 'column',
+                  height: '100%'
+                }}
+              >
+                <TerminalInstance 
+                  tabId={tab.id} 
+                  label={tab.title} 
+                  onRename={(newTitle) => renameTab(tab.id, newTitle)}
+                  initialConnection={tab.connectionInfo}
+                />
               </div>
-            ) : (
-              terminals.map(tab => (
-                <div 
-                  key={tab.id} 
-                  className="terminal-tab-content"
-                  style={{ 
-                    display: activeTab === tab.id ? 'flex' : 'none',
-                    flexDirection: 'column',
-                    height: '100%'
-                  }}
-                >
-                  <TerminalInstance 
-                    tabId={tab.id} 
-                    label={tab.title} 
-                    onRename={(newTitle) => renameTab(tab.id, newTitle)}
-                    initialConnection={tab.connectionInfo}
-                  />
-                </div>
-              ))
-            )}
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </div>
 
       {/* Add the Chatbot component - Hidden in fullscreen */}
