@@ -1439,3 +1439,185 @@ body {
 .import-dockerfile-icon-btn:hover {
   transform: scale(1.2);
 }
+
+/* Add these styles to your terminal.css file */
+
+/* Tab container styles */
+.tab-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.tab-button {
+  background-color: #34495e;
+  color: #ecf0f1;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.tab-button:hover {
+  background-color: #3d566e;
+}
+
+.tab-button.active {
+  background-color: #3498db;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+}
+
+.container-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.2);
+  color: #ecf0f1;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: bold;
+  min-width: 20px;
+}
+
+/* Container header restructure */
+.containers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: #2c3e50;
+  border-bottom: 1px solid #34495e;
+  flex-shrink: 0;
+}
+
+.header-title {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.container-actions-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Import button styles */
+.import-dockerfile-icon-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  color: #ecf0f1;
+  transition: transform 0.2s;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.1);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.import-dockerfile-icon-btn:hover {
+  transform: scale(1.1);
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.import-dockerfile-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Favorite button styles */
+.container-actions-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.favorite-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f39c12;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(243, 156, 18, 0.1);
+}
+
+.favorite-btn:hover {
+  background: rgba(243, 156, 18, 0.2);
+  transform: scale(1.1);
+  box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+}
+
+.favorite-btn.favorited {
+  color: #f39c12;
+  background: rgba(243, 156, 18, 0.2);
+  text-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+}
+
+/* Animation for favorite button */
+@keyframes favorite-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.favorite-btn.favorited {
+  animation: favorite-pulse 0.5s ease;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .tab-container {
+    flex-direction: row;
+    width: 100%;
+  }
+  
+  .tab-button {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  
+  .containers-header {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+  }
+  
+  .header-title {
+    width: 100%;
+  }
+  
+  .container-actions-header {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .create-container-btn {
+    flex: 1;
+  }
+  
+  .container-card {
+    min-width: 100%;
+  }
+}

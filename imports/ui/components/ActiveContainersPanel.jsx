@@ -2,11 +2,24 @@ import React, { useEffect, useState, useRef } from 'react';
 
 const ActiveContainersPanel = ({ onConnectToContainer }) => {
   const [containers, setContainers] = useState([]);
+  const [favorites, setFavorites] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
+  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'favorites'
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    // Load favorites from localStorage on component mount
+    const savedFavorites = localStorage.getItem('favorite-containers');
+    if (savedFavorites) {
+      try {
+        setFavorites(JSON.parse(savedFavorites));
+      } catch (error) {
+        console.error('Error parsing saved favorites:', error);
+        // Reset if corrupted
+        localStorage.removeItem('favorite-containers');
+      }
+    }
+
     const fetchContainers = async () => {
       try {
         const res = await fetch('/api/active-containers');
@@ -21,6 +34,11 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
     const interval = setInterval(fetchContainers, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Save favorites to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('favorite-containers', JSON.stringify(favorites));
+  }, [favorites]);
 
   const createContainer = async () => {
     setIsCreating(true);
@@ -71,6 +89,9 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
             (container.id || container.Id) !== containerId
           )
         );
+        
+        // Also remove from favorites if present
+        removeFavorite(containerId);
       } else {
         const error = await response.json();
         console.error('Failed to stop container:', error.message);
@@ -92,20 +113,76 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
     }
   };
 
-  // UPDATED: Enhanced port display and copy functionality
-  const copyPortToClipboard = async (port, containerName) => {
+  // Toggle favorite status
+  const toggleFavorite = (container) => {
+    const containerId = container.id || container.Id;
+    
+    // Check if already in favorites
+    if (favorites.some(fav => (fav.id || fav.Id) === containerId)) {
+      removeFavorite(containerId);
+    } else {
+      addToFavorites(container);
+    }
+  };
+
+  // Add container to favorites
+  const addToFavorites = (container) => {
+    // Make a copy to avoid modifying the original container object
+    const containerCopy = { ...container, addedToFavoritesAt: new Date().toISOString() };
+    setFavorites(prev => [...prev, containerCopy]);
+  };
+
+  // Remove container from favorites
+  const removeFavorite = (containerId) => {
+    setFavorites(prev => 
+      prev.filter(fav => (fav.id || fav.Id) !== containerId)
+    );
+  };
+
+  // Check if a container is in favorites
+  const isFavorite = (containerId) => {
+    return favorites.some(fav => (fav.id || fav.Id) === containerId);
+  };
+
+  // Import Dockerfile functionality
+  const handleImportClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('dockerfile', file);
+
     try {
-      await navigator.clipboard.writeText(port.toString());
-      alert(`Port ${port} copied to clipboard!\nUse this port in the SSH connection form.`);
-    } catch (err) {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = port.toString();
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      alert(`Port ${port} copied to clipboard!\nUse this port in the SSH connection form.`);
+      setIsCreating(true);
+      const response = await fetch('/api/import-dockerfile', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Dockerfile imported successfully:', result);
+        
+        // Refresh the containers list
+        const res = await fetch('/api/active-containers');
+        const data = await res.json();
+        setContainers(data);
+      } else {
+        const error = await response.json();
+        console.error('Failed to import Dockerfile:', error.message);
+        alert(`Failed to import Dockerfile: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Error importing Dockerfile:', error);
+      alert(`Error importing Dockerfile: ${error.message}`);
+    } finally {
+      setIsCreating(false);
+      // Reset file input
+      e.target.value = '';
     }
   };
 
@@ -128,24 +205,84 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
     }
   };
 
+  // Get containers to display based on active tab
+  const getDisplayedContainers = () => {
+    if (activeTab === 'favorites') {
+      // For favorites, we also check if they still exist in the active containers list
+      // This gives a "real-time" view of favorite containers
+      return favorites.filter(fav => {
+        const favId = fav.id || fav.Id;
+        // Either the container is still active, or we keep it but mark it as inactive
+        const isStillActive = containers.some(c => (c.id || c.Id) === favId);
+        return isStillActive;
+      });
+    }
+    return containers;
+  };
+
+  const copyPortToClipboard = async (port, containerName) => {
+    try {
+      await navigator.clipboard.writeText(port.toString());
+      alert(`Port ${port} copied to clipboard!\nUse this port in the SSH connection form.`);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = port.toString();
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert(`Port ${port} copied to clipboard!\nUse this port in the SSH connection form.`);
+    }
+  };
+
+  const displayedContainers = getDisplayedContainers();
+
   return (
     <div className="active-containers-content">
-      {/* Header Section */}
+      {/* Header Section with Tabs */}
       <div className="containers-header">
         <div className="header-title">
-          <h3>Active Containers</h3>
-          <span className="container-count">{containers.length} running</span>
+          <div className="tab-container">
+            <button 
+              className={`tab-button ${activeTab === 'active' ? 'active' : ''}`}
+              onClick={() => setActiveTab('active')}
+            >
+              Active Containers
+              <span className="container-count">{containers.length}</span>
+            </button>
+            <button 
+              className={`tab-button ${activeTab === 'favorites' ? 'active' : ''}`}
+              onClick={() => setActiveTab('favorites')}
+            >
+              Favorites
+              <span className="container-count">{
+                favorites.filter(fav => 
+                  containers.some(c => (c.id || c.Id) === (fav.id || fav.Id))
+                ).length
+              }</span>
+            </button>
+          </div>
         </div>
-        <div className="header-buttons">
-          {/* NEW: Import Icon-Only Button */}
+        <div className="container-actions-header">
+          {/* Import Dockerfile Button */}
           <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
+            onClick={handleImportClick}
+            disabled={isCreating}
             className="import-dockerfile-icon-btn"
             title="Import Dockerfile"
           >
-            {isImporting ? '⏳' : '📄'}
+            📥
           </button>
+          {/* Hidden file input for Dockerfile import */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+            accept=".dockerfile,.Dockerfile,Dockerfile,text/plain"
+          />
+          {/* Create Container Button */}
           <button
             onClick={createContainer}
             disabled={isCreating}
@@ -153,73 +290,27 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
           >
             {isCreating ? 'Creating...' : 'Create'}
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".dockerfile,.txt,Dockerfile"
-            onChange={async (event) => {
-              const file = event.target.files[0];
-              if (!file) return;
-
-              setIsImporting(true);
-
-              try {
-                const textContent = await file.text(); // Read .txt/.dockerfile content
-                const blob = new Blob([textContent], { type: 'text/plain' });
-
-                const dockerfile = new File([blob], 'Dockerfile', { type: 'text/plain' });
-
-                const formData = new FormData();
-                formData.append('dockerfile', dockerfile); // always named Dockerfile
-                formData.append('imageName', `custom-ssh-${Date.now()}`);
-
-                const response = await fetch('/api/import-dockerfile', {
-                  method: 'POST',
-                  body: formData
-                });
-
-                if (response.ok) {
-                  const result = await response.json();
-                  alert(`Custom container created: ${result.containerName}`);
-
-                  const res = await fetch('/api/active-containers');
-                  const data = await res.json();
-                  setContainers(data);
-                } else {
-                  let errorMsg = 'Unknown error occurred while importing Dockerfile.';
-                  try {
-                    const error = await response.json();
-                    errorMsg = error.message || errorMsg;
-                  } catch (e) {
-                    errorMsg = response.statusText;
-                  }
-                  alert(`Failed to import Dockerfile: ${errorMsg}`);
-                }
-              } catch (err) {
-                alert(`Error processing Dockerfile: ${err.message}`);
-              } finally {
-                setIsImporting(false);
-                if (fileInputRef.current) {
-                  fileInputRef.current.value = '';
-                }
-              }
-            }}
-            style={{ display: 'none' }}
-          />
-
         </div>
       </div>
 
       {/* Containers Grid */}
       <div className="containers-grid">
-        {containers.length === 0 ? (
+        {displayedContainers.length === 0 ? (
           <div className="no-containers">
             <div className="no-containers-icon">📦</div>
-            <h4>No Active Containers</h4>
-            <p>Click "Create" to start a new SSH container</p>
+            <h4>
+              {activeTab === 'active' 
+                ? 'No Active Containers' 
+                : 'No Favorite Containers'}
+            </h4>
+            <p>
+              {activeTab === 'active'
+                ? 'Click "Create" to start a new SSH container or import a Dockerfile'
+                : 'Star containers to add them to your favorites'}
+            </p>
           </div>
         ) : (
-          containers.map(container => {
+          displayedContainers.map(container => {
             const containerId = container.id || container.Id;
             const name = container.name || container.Names?.[0]?.replace('/', '') || 'Unnamed';
             const image = container.image || container.Image || 'Unknown Image';
@@ -230,22 +321,35 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
               ? new Date(createdTime * 1000).toLocaleString()
               : 'N/A';
             const publicPort = getPublicPort(container);
+            const favorite = isFavorite(containerId);
 
             return (
-              <div key={containerId} className="container-card">
+              <div
+                key={containerId}
+                className="container-card"
+              >
                 {/* Container Header */}
                 <div className="container-card-header">
                   <div className="container-name">
                     <span className="name-text">{name}</span>
                     <span className="container-id">{containerId.substring(0, 12)}</span>
                   </div>
-                  <button
-                    onClick={(e) => handleStopClick(e, containerId, name)}
-                    className="stop-btn"
-                    title={`Stop container: ${name}`}
-                  >
-                    ×
-                  </button>
+                  <div className="container-actions-top">
+                    <button 
+                      onClick={() => toggleFavorite(container)}
+                      className={`favorite-btn ${favorite ? 'favorited' : ''}`}
+                      title={favorite ? "Remove from favorites" : "Add to favorites"}
+                    >
+                      {favorite ? '★' : '☆'}
+                    </button>
+                    <button
+                      onClick={(e) => handleStopClick(e, containerId, name)}
+                      className="stop-btn"
+                      title={`Stop container: ${name}`}
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
 
                 {/* Container Info */}
@@ -258,14 +362,16 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
                     <span className="info-label">Status:</span>
                     <span className={`status-badge ${state.toLowerCase()}`}>{status}</span>
                   </div>
-                  {/* UPDATED: Enhanced port display */}
                   <div className="info-row">
                     <span className="info-label">SSH Port:</span>
                     <span 
                       className="port-value clickable-port" 
                       onClick={() => copyPortToClipboard(publicPort, name)}
                       title="Click to copy port number"
-                      style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                      style={{ 
+                        cursor: 'pointer',
+                        textDecoration: 'underline'
+                      }}
                     >
                       {publicPort} 📋
                     </span>
@@ -276,7 +382,7 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
                   </div>
                 </div>
 
-                {/* UPDATED: Enhanced Quick Actions */}
+                {/* Container Actions */}
                 <div className="container-actions">
                   <button 
                     className="action-btn connect-btn" 
@@ -295,7 +401,7 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
                       }
                     }}
                     title={`Connect to ${name} on port ${publicPort}`}
-                    style={{ width: '100%' }}  // Make the button full width since it's the only one
+                    style={{ width: '100%' }}
                   >
                     🔌 Connect
                   </button>
