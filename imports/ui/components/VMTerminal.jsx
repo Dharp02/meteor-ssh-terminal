@@ -10,10 +10,13 @@ const VMTerminal = ({ onBack }) => {
   const fitAddon = useRef(new FitAddon());
   const socket = useRef(null);
   
+  const [terminals, setTerminals] = useState([{ id: 1, title: 'Terminal 1' }]);
+  const [activeTab, setActiveTab] = useState(1);
+  
   const [serverInfo, setServerInfo] = useState({
-    host: '',
+    host: 'localhost',
     port: 22,
-    username: '',
+    username: 'root',
     password: '',
     useKeyAuth: false,
     privateKey: '',
@@ -23,6 +26,7 @@ const VMTerminal = ({ onBack }) => {
   const [connectionStatus, setConnectionStatus] = useState('Disconnected');
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [logData, setLogData] = useState('');
 
   useEffect(() => {
     // Initialize terminal
@@ -49,12 +53,8 @@ const VMTerminal = ({ onBack }) => {
     term.current.focus();
     
     // Welcome message
-    term.current.writeln('\x1b[36m╭─────────────────────────────────────╮\x1b[0m');
-    term.current.writeln('\x1b[36m│           VM SSH Terminal           │\x1b[0m');
-    term.current.writeln('\x1b[36m╰─────────────────────────────────────╯\x1b[0m');
-    term.current.writeln('');
-    term.current.writeln('\x1b[33mEnter your SSH connection details above and click Connect.\x1b[0m');
-    term.current.writeln('');
+    term.current.writeln('New Terminal Instance');
+    term.current.writeln('\x1b[32mConnected to WebSocket server\x1b[0m');
 
     // Fit terminal to container
     setTimeout(() => {
@@ -81,6 +81,7 @@ const VMTerminal = ({ onBack }) => {
     socket.current.on('output', data => {
       if (term.current) {
         term.current.write(data);
+        setLogData(prev => prev + data);
       }
     });
 
@@ -88,7 +89,7 @@ const VMTerminal = ({ onBack }) => {
       setConnectionStatus('SSH Connected');
       setIsConnected(true);
       setIsConnecting(false);
-      term.current.writeln('\r\n\x1b[32m✓ SSH Connection established\x1b[0m\r\n');
+      term.current.writeln('\r\n\x1b[32mSSH Connection established\x1b[0m');
     });
 
     socket.current.on('disconnect', () => {
@@ -112,6 +113,7 @@ const VMTerminal = ({ onBack }) => {
     term.current.onData(data => {
       if (socket.current && isConnected) {
         socket.current.emit('input', data);
+        setLogData(prev => prev + data);
       }
     });
 
@@ -203,153 +205,188 @@ const VMTerminal = ({ onBack }) => {
   const clearTerminal = () => {
     if (term.current) {
       term.current.clear();
+      setLogData('');
+    }
+  };
+
+  const downloadLog = () => {
+    const blob = new Blob([logData], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vm-session-${Date.now()}.log`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const createNewTerminalTab = () => {
+    const id = Date.now();
+    const newTab = {
+      id,
+      title: `Terminal ${terminals.length + 1}`
+    };
+    setTerminals(prev => [...prev, newTab]);
+    setActiveTab(id);
+  };
+
+  const closeTab = (id) => {
+    if (terminals.length <= 1) return; // Don't close last tab
+    
+    setTerminals(prev => {
+      const newTerminals = prev.filter(tab => tab.id !== id);
+      return newTerminals;
+    });
+    
+    if (activeTab === id) {
+      const remainingTerminals = terminals.filter(tab => tab.id !== id);
+      if (remainingTerminals.length > 0) {
+        const fallback = remainingTerminals[remainingTerminals.length - 1];
+        setActiveTab(fallback.id);
+      }
     }
   };
 
   return (
     <div className="vm-terminal-container">
-      {/* Header with connection form */}
-      <div className="vm-header">
-        <div className="vm-header-left">
-          <button className="back-button" onClick={onBack}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Back to Services
-          </button>
-          <div className="connection-status">
-            <div className={`status-indicator ${isConnected ? 'connected' : isConnecting ? 'connecting' : 'disconnected'}`}></div>
-            <span className="status-text">{connectionStatus}</span>
-          </div>
-        </div>
-        
-        <div className="connection-form">
-          <div className="form-group">
-            <input
-              type="text"
-              name="host"
-              placeholder="Host"
-              value={serverInfo.host}
-              onChange={handleInputChange}
-              disabled={isConnected}
-              className="form-input"
-            />
-          </div>
-          
-          <div className="form-group">
-            <input
-              type="number"
-              name="port"
-              placeholder="Port"
-              value={serverInfo.port}
-              onChange={handleInputChange}
-              disabled={isConnected}
-              className="form-input port-input"
-              min="1"
-              max="65535"
-            />
-          </div>
-          
-          <div className="form-group">
-            <input
-              type="text"
-              name="username"
-              placeholder="Username"
-              value={serverInfo.username}
-              onChange={handleInputChange}
-              disabled={isConnected}
-              className="form-input"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label className="auth-toggle">
-              <input
-                type="checkbox"
-                name="useKeyAuth"
-                checked={serverInfo.useKeyAuth}
-                onChange={handleInputChange}
-                disabled={isConnected}
-              />
-              SSH Key
-            </label>
-          </div>
-          
-          {!serverInfo.useKeyAuth ? (
-            <div className="form-group">
-              <input
-                type="password"
-                name="password"
-                placeholder="Password"
-                value={serverInfo.password}
-                onChange={handleInputChange}
-                disabled={isConnected}
-                className="form-input"
-              />
-            </div>
-          ) : (
-            <>
-              <div className="form-group key-group">
-                <textarea
-                  name="privateKey"
-                  placeholder="Private Key"
-                  value={serverInfo.privateKey}
-                  onChange={handleInputChange}
-                  disabled={isConnected}
-                  className="form-textarea"
-                  rows="3"
-                />
-              </div>
-              <div className="form-group">
-                <input
-                  type="password"
-                  name="passphrase"
-                  placeholder="Passphrase (optional)"
-                  value={serverInfo.passphrase}
-                  onChange={handleInputChange}
-                  disabled={isConnected}
-                  className="form-input"
-                />
-              </div>
-            </>
-          )}
-          
-          <div className="form-actions">
-            {isConnected ? (
-              <>
-                <button
-                  className="action-button disconnect-button"
-                  onClick={disconnectSSH}
-                >
-                  Disconnect
-                </button>
-                <button
-                  className="action-button clear-button"
-                  onClick={clearTerminal}
-                >
-                  Clear
-                </button>
-              </>
-            ) : (
-              <button
-                className="action-button connect-button"
-                onClick={connectSSH}
-                disabled={!validateForm() || isConnecting}
+      {/* Back to Services Button */}
+      <div className="back-to-services-header">
+        <button className="back-to-services-btn" onClick={onBack}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Back to Services
+        </button>
+      </div>
+
+      {/* Tab Bar */}
+      <div className="tab-bar">
+        {terminals.map(tab => (
+          <div
+            key={tab.id}
+            className={`tab ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            <span title={tab.title}>
+              {tab.title}
+            </span>
+            {terminals.length > 1 && (
+              <button 
+                className="close-btn" 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  closeTab(tab.id); 
+                }}
+                title="Close tab"
               >
-                {isConnecting ? 'Connecting...' : 'Connect'}
+                ×
               </button>
             )}
           </div>
-        </div>
+        ))}
+        <button 
+          className="add-tab" 
+          onClick={createNewTerminalTab}
+          title="Add new terminal"
+        >
+          +
+        </button>
       </div>
 
-      {/* Terminal */}
-      <div className="vm-terminal-wrapper">
-        <div 
-          className="vm-terminal"
-          ref={terminalRef}
+      {/* Terminal Header with Connection Form */}
+      <div className="terminal-header">
+        <input 
+          type="text" 
+          name="host" 
+          placeholder="Host" 
+          value={serverInfo.host} 
+          onChange={handleInputChange}
+          disabled={isConnected}
         />
+        <input 
+          type="number" 
+          name="port" 
+          placeholder="Port" 
+          value={serverInfo.port} 
+          onChange={handleInputChange}
+          disabled={isConnected}
+          min="1"
+          max="65535"
+        />
+        <input 
+          type="text" 
+          name="username" 
+          placeholder="Username" 
+          value={serverInfo.username} 
+          onChange={handleInputChange}
+          disabled={isConnected}
+        />
+        <label>
+          <input 
+            type="checkbox" 
+            name="useKeyAuth" 
+            checked={serverInfo.useKeyAuth} 
+            onChange={handleInputChange}
+            disabled={isConnected}
+          /> 
+          SSH Key
+        </label>
+        {!serverInfo.useKeyAuth ? (
+          <input 
+            type="password" 
+            name="password" 
+            placeholder="Password" 
+            value={serverInfo.password} 
+            onChange={handleInputChange}
+            disabled={isConnected}
+          />
+        ) : (
+          <>
+            <textarea 
+              name="privateKey" 
+              placeholder="Private Key" 
+              value={serverInfo.privateKey} 
+              onChange={handleInputChange}
+              disabled={isConnected}
+              style={{ display: 'none' }}
+            />
+            <input 
+              type="password" 
+              name="passphrase" 
+              placeholder="Passphrase" 
+              value={serverInfo.passphrase} 
+              onChange={handleInputChange}
+              disabled={isConnected}
+            />
+          </>
+        )}
+        {isConnected ? (
+          <>
+            <button onClick={disconnectSSH} className="disconnect-button">
+              Disconnect
+            </button>
+            <button onClick={downloadLog} className="history-button">
+              Download Log
+            </button>
+            <button onClick={clearTerminal} className="clear-history-button">
+              Clear
+            </button>
+          </>
+        ) : (
+          <button 
+            onClick={connectSSH} 
+            disabled={!validateForm() || isConnecting}
+            className="connect-button"
+          >
+            {isConnecting ? 'Connecting...' : 'Connect'}
+          </button>
+        )}
       </div>
+
+      {/* Terminal Instance */}
+      <div
+        className="terminal-instance"
+        ref={terminalRef}
+      />
     </div>
   );
 };

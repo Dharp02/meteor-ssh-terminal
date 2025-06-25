@@ -2271,3 +2271,645 @@ body {
     font-size: 1.3rem;
   }
 }
+
+.vm-terminal-container {
+  height: 100vh;
+  background-color: #1e1e1e;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Tab Bar Styling - Same as container interface */
+.vm-terminal-container .tab-bar {
+  display: flex;
+  align-items: center;
+  background-color: #34495e;
+  padding: 5px;
+  margin: 0;
+  overflow-x: auto;
+  min-height: 40px;
+  flex-shrink: 0;
+  border-radius: 0;
+}
+
+.vm-terminal-container .tab {
+  display: flex;
+  align-items: center;
+  background-color: #34495e;
+  color: #ecf0f1;
+  padding: 8px 12px;
+  margin-right: 5px;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  min-width: 120px;
+  max-width: 200px;
+  position: relative;
+  border: 1px solid #2c3e50;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.vm-terminal-container .tab:hover {
+  background-color: #3b4f66;
+}
+
+.vm-terminal-container .tab.active {
+  background-color: #3498db;
+  color: white;
+  border-bottom: 1px solid #3498db;
+  transform: translateY(1px);
+}
+
+.vm-terminal-container .tab span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.vm-terminal-container .close-btn {
+  background: none;
+  border: none;
+  color: #bdc3c7;
+  cursor: pointer;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 16px;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+
+.vm-terminal-container .close-btn:hover {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.vm-terminal-container .tab.active .close-btn {
+  color: #ecf0f1;
+}
+
+.vm-terminal-container .add-tab {
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  margin-left: 5px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vm-terminal-container .add-tab:hover {
+  background-color: #2ecc71;
+  transform: scale(1.1);
+}
+
+/* Terminal Header - Same as container interface */
+.vm-terminal-container .terminal-header {
+  background-color: #2c3e50;
+  padding: 10px;
+  margin: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  border-bottom: 1px solid #34495e;
+}
+
+.vm-terminal-container .terminal-header input,
+.vm-terminal-container .terminal-header textarea,
+.vm-terminal-container .terminal-header button {
+  margin: 2px;
+  padding: 4px 8px;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background: #34495e;
+  color: #ecf0f1;
+  font-size: 12px;
+}
+
+.vm-terminal-container .terminal-header input[type="number"] {
+  width: 80px;
+}
+
+.vm-terminal-container .terminal-header input[type="text"],
+.vm-terminal-container .terminal-header input[type="password"] {
+  width: 120px;
+}
+
+.vm-terminal-container .terminal-header label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #ecf0f1;
+  font-size: 12px;
+  cursor: pointer;
+  margin: 2px;
+}
+
+.vm-terminal-container .terminal-header input[type="checkbox"] {
+  accent-color: #3498db;
+  margin: 0;
+}
+
+.vm-terminal-container .terminal-header button {
+  background: #3498db;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vm-terminal-container .terminal-header button:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.vm-terminal-container .terminal-header button:disabled {
+  background: #7f8c8d;
+  cursor: not-allowed;
+}
+
+.vm-terminal-container .connect-button {
+  background: #3498db !important;
+}
+
+.vm-terminal-container .disconnect-button {
+  background: #e74c3c !important;
+}
+
+.vm-terminal-container .disconnect-button:hover {
+  background: #c0392b !important;
+}
+
+.vm-terminal-container .history-button {
+  background: #7f8c8d !important;
+}
+
+.vm-terminal-container .history-button:hover {
+  background: #95a5a6 !important;
+}
+
+.vm-terminal-container .clear-history-button {
+  background: #e74c3c !important;
+}
+
+.vm-terminal-container .clear-history-button:hover {
+  background: #c0392b !important;
+}
+
+/* Terminal Instance - Same as container interface */
+.vm-terminal-container .terminal-instance {
+  flex: 1;
+  width: 100%;
+  background: #000;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* XTerm specific styling */
+.vm-terminal-container .terminal-instance .xterm {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.vm-terminal-container .terminal-instance .xterm-viewport {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin;
+  scrollbar-color: #666 #2a2a2a;
+}
+
+.vm-terminal-container .terminal-instance .xterm-viewport::-webkit-scrollbar {
+  width: 12px;
+  background: #2a2a2a;
+}
+
+.vm-terminal-container .terminal-instance .xterm-viewport::-webkit-scrollbar-track {
+  background: #2a2a2a;
+}
+
+.vm-terminal-container .terminal-instance .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #666;
+  border-radius: 6px;
+  border: 2px solid #2a2a2a;
+}
+
+.vm-terminal-container .terminal-instance .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+
+.vm-terminal-container .terminal-instance .xterm-screen {
+  background-color: #000 !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .vm-terminal-container .terminal-header {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+  }
+  
+  .vm-terminal-container .terminal-header input,
+  .vm-terminal-container .terminal-header button {
+    width: 100%;
+    max-width: 200px;
+  }
+  
+  .vm-terminal-container .tab {
+    min-width: 100px;
+    max-width: 150px;
+    padding: 6px 8px;
+  }
+  
+  .vm-terminal-container .tab span {
+    font-size: 12px;
+  }
+  
+  .vm-terminal-container .close-btn {
+    margin-left: 4px;
+    padding: 1px 4px;
+    font-size: 14px;
+  }
+  
+  .vm-terminal-container .add-tab {
+    width: 25px;
+    height: 25px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .vm-terminal-container .terminal-header {
+    padding: 6px;
+  }
+  
+  .vm-terminal-container .terminal-header input,
+  .vm-terminal-container .terminal-header button {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+  
+  .vm-terminal-container .tab-bar {
+    padding: 3px;
+  }
+}
+
+.vm-terminal-container {
+  height: 100vh;
+  background-color: #1e1e1e;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Back to Services Header */
+.vm-terminal-container .back-to-services-header {
+  background-color: #2c3e50;
+  padding: 10px 20px;
+  border-bottom: 1px solid #34495e;
+  flex-shrink: 0;
+}
+
+.vm-terminal-container .back-to-services-btn {
+  background: rgba(52, 152, 219, 0.1);
+  color: #3498db;
+  border: 1px solid #3498db;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.vm-terminal-container .back-to-services-btn:hover {
+  background: rgba(52, 152, 219, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+}
+
+/* Tab Bar Styling - Same as container interface */
+.vm-terminal-container .tab-bar {
+  display: flex;
+  align-items: center;
+  background-color: #34495e;
+  padding: 5px;
+  margin: 0;
+  overflow-x: auto;
+  min-height: 40px;
+  flex-shrink: 0;
+  border-radius: 0;
+}
+
+.vm-terminal-container .tab {
+  display: flex;
+  align-items: center;
+  background-color: #34495e;
+  color: #ecf0f1;
+  padding: 8px 12px;
+  margin-right: 5px;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  min-width: 120px;
+  max-width: 200px;
+  position: relative;
+  border: 1px solid #2c3e50;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.vm-terminal-container .tab:hover {
+  background-color: #3b4f66;
+}
+
+.vm-terminal-container .tab.active {
+  background-color: #3498db;
+  color: white;
+  border-bottom: 1px solid #3498db;
+  transform: translateY(1px);
+}
+
+.vm-terminal-container .tab span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.vm-terminal-container .close-btn {
+  background: none;
+  border: none;
+  color: #bdc3c7;
+  cursor: pointer;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 16px;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+
+.vm-terminal-container .close-btn:hover {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.vm-terminal-container .tab.active .close-btn {
+  color: #ecf0f1;
+}
+
+.vm-terminal-container .add-tab {
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  margin-left: 5px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vm-terminal-container .add-tab:hover {
+  background-color: #2ecc71;
+  transform: scale(1.1);
+}
+
+/* Terminal Header - Same as container interface */
+.vm-terminal-container .terminal-header {
+  background-color: #2c3e50;
+  padding: 10px;
+  margin: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  border-bottom: 1px solid #34495e;
+}
+
+.vm-terminal-container .terminal-header input,
+.vm-terminal-container .terminal-header textarea,
+.vm-terminal-container .terminal-header button {
+  margin: 2px;
+  padding: 4px 8px;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background: #34495e;
+  color: #ecf0f1;
+  font-size: 12px;
+}
+
+.vm-terminal-container .terminal-header input[type="number"] {
+  width: 80px;
+}
+
+.vm-terminal-container .terminal-header input[type="text"],
+.vm-terminal-container .terminal-header input[type="password"] {
+  width: 120px;
+}
+
+.vm-terminal-container .terminal-header label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #ecf0f1;
+  font-size: 12px;
+  cursor: pointer;
+  margin: 2px;
+}
+
+.vm-terminal-container .terminal-header input[type="checkbox"] {
+  accent-color: #3498db;
+  margin: 0;
+}
+
+.vm-terminal-container .terminal-header button {
+  background: #3498db;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vm-terminal-container .terminal-header button:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.vm-terminal-container .terminal-header button:disabled {
+  background: #7f8c8d;
+  cursor: not-allowed;
+}
+
+.vm-terminal-container .connect-button {
+  background: #3498db !important;
+}
+
+.vm-terminal-container .disconnect-button {
+  background: #e74c3c !important;
+}
+
+.vm-terminal-container .disconnect-button:hover {
+  background: #c0392b !important;
+}
+
+.vm-terminal-container .history-button {
+  background: #7f8c8d !important;
+}
+
+.vm-terminal-container .history-button:hover {
+  background: #95a5a6 !important;
+}
+
+.vm-terminal-container .clear-history-button {
+  background: #e74c3c !important;
+}
+
+.vm-terminal-container .clear-history-button:hover {
+  background: #c0392b !important;
+}
+
+/* Terminal Instance - Same as container interface */
+.vm-terminal-container .terminal-instance {
+  flex: 1;
+  width: 100%;
+  background: #000;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* XTerm specific styling */
+.vm-terminal-container .terminal-instance .xterm {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.vm-terminal-container .terminal-instance .xterm-viewport {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin;
+  scrollbar-color: #666 #2a2a2a;
+}
+
+.vm-terminal-container .terminal-instance .xterm-viewport::-webkit-scrollbar {
+  width: 12px;
+  background: #2a2a2a;
+}
+
+.vm-terminal-container .terminal-instance .xterm-viewport::-webkit-scrollbar-track {
+  background: #2a2a2a;
+}
+
+.vm-terminal-container .terminal-instance .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #666;
+  border-radius: 6px;
+  border: 2px solid #2a2a2a;
+}
+
+.vm-terminal-container .terminal-instance .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+
+.vm-terminal-container .terminal-instance .xterm-screen {
+  background-color: #000 !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .vm-terminal-container .back-to-services-header {
+    padding: 8px 15px;
+  }
+  
+  .vm-terminal-container .back-to-services-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  
+  .vm-terminal-container .terminal-header {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+  }
+  
+  .vm-terminal-container .terminal-header input,
+  .vm-terminal-container .terminal-header button {
+    width: 100%;
+    max-width: 200px;
+  }
+  
+  .vm-terminal-container .tab {
+    min-width: 100px;
+    max-width: 150px;
+    padding: 6px 8px;
+  }
+  
+  .vm-terminal-container .tab span {
+    font-size: 12px;
+  }
+  
+  .vm-terminal-container .close-btn {
+    margin-left: 4px;
+    padding: 1px 4px;
+    font-size: 14px;
+  }
+  
+  .vm-terminal-container .add-tab {
+    width: 25px;
+    height: 25px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .vm-terminal-container .back-to-services-header {
+    padding: 6px 12px;
+  }
+  
+  .vm-terminal-container .back-to-services-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+  
+  .vm-terminal-container .terminal-header {
+    padding: 6px;
+  }
+  
+  .vm-terminal-container .terminal-header input,
+  .vm-terminal-container .terminal-header button {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+  
+  .vm-terminal-container .tab-bar {
+    padding: 3px;
+  }
+}
