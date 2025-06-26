@@ -41,6 +41,7 @@ WebApp.connectHandlers.use('/api/import-dockerfile', async (req, res, next) => {
 
     const dockerfile = files.dockerfile?.[0];
     const imageName = fields.imageName?.[0] || `custom-ssh-${Date.now()}`;
+    const containerName = `container-${imageName}`;
 
     if (!dockerfile || !dockerfile.path) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -62,12 +63,37 @@ WebApp.connectHandlers.use('/api/import-dockerfile', async (req, res, next) => {
       let output = '';
       stream.on('data', (chunk) => {
         output += chunk.toString();
+        console.log('Docker build output:', chunk.toString());
       });
 
-      stream.on('end', () => {
+      stream.on('end', async () => {
         console.log(`Docker image built: ${imageName}`);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ containerName: imageName }));
+        
+        // Now run the container after successful build
+        try {
+          const container = await docker.createContainer({
+            Image: imageName,
+            name: containerName
+          });
+
+          await container.start();
+          console.log(`Container started: ${containerName}`);
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ 
+            containerName: containerName,
+            imageName: imageName,
+            status: 'running'
+          }));
+        } catch (runError) {
+          console.error('Error running container:', runError);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ 
+            message: 'Image built but failed to run container',
+            error: runError.message,
+            imageName: imageName
+          }));
+        }
       });
 
       stream.on('error', (error) => {
