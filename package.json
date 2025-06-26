@@ -12,6 +12,7 @@
     "@babel/runtime": "^7.20.7",
     "@xterm/addon-search": "^0.14.0",
     "ai": "^4.3.16",
+    "bcryptjs": "^2.4.3",
     "body-parser": "^2.2.0",
     "dockerode": "^4.0.7",
     "dotenv": "^16.5.0",

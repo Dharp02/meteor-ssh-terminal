@@ -1,14 +1,15 @@
+// client/TerminalComponent.jsx - Updated to include user info and logout
 import React, { useState } from 'react';
 import TerminalInstance from '/imports/ui/components/TerminalInstance.jsx';
 import ActiveContainersPanel from '/imports/ui/components/ActiveContainersPanel';
-import Chatbot from '/imports/ui/components/Chatbox'; 
-import './main.css';
 import EnhancedChatbot from '/imports/ui/components/EnhancedChatbox';
+import UserMenu from '/imports/ui/components/UserMenu';
+import './main.css';
 
-const TerminalComponent = ({ onBack }) => {
+const TerminalComponent = ({ currentUser, onLogout }) => {
   const [terminals, setTerminals] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
-  const [isTerminalExpanded, setIsTerminalExpanded] = useState(false); // Hidden by default
+  const [isTerminalExpanded, setIsTerminalExpanded] = useState(false);
   const [isTerminalFullscreen, setIsTerminalFullscreen] = useState(false);
 
   const createNewTerminalTab = (connectionInfo = null) => {
@@ -17,25 +18,22 @@ const TerminalComponent = ({ onBack }) => {
       id,
       title: connectionInfo ? `${connectionInfo.name}` : `Terminal ${terminals.length + 1}`,
       isEditing: false,
-      connectionInfo // Store connection info with the tab
+      connectionInfo
     };
     setTerminals(prev => [...prev, newTab]);
     setActiveTab(id);
     
-    // Auto-expand terminal when creating first tab
     if (!isTerminalExpanded) {
       setIsTerminalExpanded(true);
     }
   };
 
-  // Add a method to handle container connections
   const connectToContainer = (containerInfo) => {
-    // Create a new tab with pre-filled connection info
     const connectionInfo = {
       host: 'localhost',
       port: containerInfo.port,
       username: 'root',
-      password: 'password123', // Default password from Dockerfile
+      password: 'password123',
       name: containerInfo.name
     };
     createNewTerminalTab(connectionInfo);
@@ -80,7 +78,6 @@ const TerminalComponent = ({ onBack }) => {
 
   const toggleTerminal = () => {
     setIsTerminalExpanded(prev => !prev);
-    // If collapsing, also exit fullscreen
     if (isTerminalExpanded && isTerminalFullscreen) {
       setIsTerminalFullscreen(false);
     }
@@ -88,7 +85,6 @@ const TerminalComponent = ({ onBack }) => {
 
   const toggleFullscreen = () => {
     setIsTerminalFullscreen(prev => !prev);
-    // If entering fullscreen, make sure terminal is expanded
     if (!isTerminalFullscreen) {
       setIsTerminalExpanded(true);
     }
@@ -96,7 +92,7 @@ const TerminalComponent = ({ onBack }) => {
 
   const minimizeTerminal = () => {
     setIsTerminalFullscreen(false);
-    setIsTerminalExpanded(true); // Keep expanded but not fullscreen
+    setIsTerminalExpanded(true);
   };
 
   const getPageClass = () => {
@@ -112,31 +108,23 @@ const TerminalComponent = ({ onBack }) => {
 
   return (
     <div className={`terminal-page ${getPageClass()}`}>
-      {/* Header - Hidden in fullscreen */}
+      {/* Header with User Menu - Hidden in fullscreen */}
       {!isTerminalFullscreen && (
         <div className="page-header">
-          {onBack && (
-            <button className="back-to-services-btn" onClick={onBack}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Back to Services
-            </button>
-          )}
           <h1>SSH Terminal</h1>
+          <UserMenu currentUser={currentUser} onLogout={onLogout} />
         </div>
       )}
       
-      {/* Active Containers Panel - Expands when terminal is collapsed, hidden in fullscreen */}
+      {/* Active Containers Panel */}
       {!isTerminalFullscreen && (
         <div className={`active-containers-panel ${isTerminalExpanded ? 'normal' : 'expanded'}`}>
           <ActiveContainersPanel onConnectToContainer={connectToContainer} />
         </div>
       )}
 
-      {/* Terminal Container - Slides to bottom when collapsed */}
+      {/* Terminal Container */}
       <div className={`terminal-container ${getTerminalContainerClass()}`}>
-        {/* Terminal Toggle Button - Inside terminal container */}
         <div className="terminal-toggle-container">
           <button 
             className="terminal-toggle-btn"
@@ -159,7 +147,6 @@ const TerminalComponent = ({ onBack }) => {
             </span>
           </button>
 
-          {/* Terminal Controls - Positioned absolutely when expanded */}
           {isTerminalExpanded && (
             <div className="terminal-controls">
               <button 
@@ -192,7 +179,6 @@ const TerminalComponent = ({ onBack }) => {
           )}
         </div>
 
-        {/* Fixed Tab Bar - Always visible */}
         <div className="tab-bar">
           {terminals.map(tab => (
             <div
@@ -246,7 +232,6 @@ const TerminalComponent = ({ onBack }) => {
           </button>
         </div>
 
-        {/* Terminal Content Area - Always mounted but hidden when collapsed */}
         <div className="terminal-content" style={{ display: isTerminalExpanded ? 'block' : 'none' }}>
           {terminals.length === 0 ? (
             <div style={{ 
@@ -282,7 +267,6 @@ const TerminalComponent = ({ onBack }) => {
         </div>
       </div>
 
-      {/* Add the Chatbot component - Hidden in fullscreen */}
       {!isTerminalFullscreen && <EnhancedChatbot />}
     </div>
   );

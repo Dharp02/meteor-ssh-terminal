@@ -1,9 +1,11 @@
+// server/main.js
 import { Meteor } from 'meteor/meteor';
 import { WebApp } from 'meteor/webapp';
 import { Server } from 'socket.io';
 import { Client } from 'ssh2';
 import { SessionLogs } from '../imports/api/sessions';
 import { AuditLogs } from '../imports/api/auditLogs'; 
+import { AppUsers } from '../imports/api/users';
 import Docker from 'dockerode';
 import bodyParser from 'body-parser';
 import './aichat.js';
@@ -21,6 +23,77 @@ WebApp.connectHandlers.use(bodyParser.json());
 const docker = new Docker({ host: 'localhost', port: 2375 });
 let io;
 const terminalSessions = new Map();
+
+// Authentication middleware for API routes
+const requireAuth = async (req, res, next) => {
+  try {
+    const userId = req.headers['x-user-id'] || req.body?.userId;
+    
+    if (!userId) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Authentication required', code: 'NO_USER_ID' }));
+      return;
+    }
+
+    // Verify user exists and is active
+    const user = await AppUsers.findOneAsync({ _id: userId, isActive: true });
+    if (!user) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid user session', code: 'INVALID_USER' }));
+      return;
+    }
+
+    // Add user to request object
+    req.currentUser = user;
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Authentication error', code: 'AUTH_ERROR' }));
+  }
+};
+
+// Socket.IO authentication middleware
+const authenticateSocket = async (socket, next) => {
+  try {
+    const userId = socket.handshake.auth?.userId;
+    const userInfo = socket.handshake.auth?.userInfo;
+
+    if (!userId) {
+      return next(new Error('Authentication required: No user ID provided'));
+    }
+
+    const user = await AppUsers.findOneAsync({ 
+      _id: userId, 
+      isActive: true 
+    });
+
+    if (!user) {
+      return next(new Error('Authentication failed: Invalid user session'));
+    }
+
+    // Add user info to socket
+    socket.currentUser = user;
+    socket.userId = userId;
+    socket.userInfo = userInfo || {
+      username: user.username,
+      role: user.role,
+      email: user.email
+    };
+    
+    console.log(`Socket authenticated for user: ${user.username} (${user.role})`);
+    next();
+  } catch (error) {
+    console.error('Socket authentication error:', error);
+    next(new Error('Authentication failed: ' + error.message));
+  }
+};
+
+// Apply authentication to protected routes
+WebApp.connectHandlers.use('/api/import-dockerfile', requireAuth);
+WebApp.connectHandlers.use('/api/stop-container', requireAuth);
+WebApp.connectHandlers.use('/api/active-containers', requireAuth);
+WebApp.connectHandlers.use('/api/create-container', requireAuth);
 
 WebApp.connectHandlers.use('/api/import-dockerfile', async (req, res, next) => {
   if (req.method !== 'POST') {
@@ -41,7 +114,6 @@ WebApp.connectHandlers.use('/api/import-dockerfile', async (req, res, next) => {
 
     const dockerfile = files.dockerfile?.[0];
     const imageName = fields.imageName?.[0] || `custom-ssh-${Date.now()}`;
-    const containerName = `container-${imageName}`;
 
     if (!dockerfile || !dockerfile.path) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -63,37 +135,12 @@ WebApp.connectHandlers.use('/api/import-dockerfile', async (req, res, next) => {
       let output = '';
       stream.on('data', (chunk) => {
         output += chunk.toString();
-        console.log('Docker build output:', chunk.toString());
       });
 
-      stream.on('end', async () => {
-        console.log(`Docker image built: ${imageName}`);
-        
-        // Now run the container after successful build
-        try {
-          const container = await docker.createContainer({
-            Image: imageName,
-            name: containerName
-          });
-
-          await container.start();
-          console.log(`Container started: ${containerName}`);
-
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ 
-            containerName: containerName,
-            imageName: imageName,
-            status: 'running'
-          }));
-        } catch (runError) {
-          console.error('Error running container:', runError);
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ 
-            message: 'Image built but failed to run container',
-            error: runError.message,
-            imageName: imageName
-          }));
-        }
+      stream.on('end', () => {
+        console.log(`Docker image built by ${req.currentUser.username}: ${imageName}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ containerName: imageName }));
       });
 
       stream.on('error', (error) => {
@@ -110,7 +157,6 @@ WebApp.connectHandlers.use('/api/import-dockerfile', async (req, res, next) => {
   });
 });
 
-
 // API endpoint to stop and remove containers
 WebApp.connectHandlers.use('/api/stop-container', async (req, res) => {
   if (req.method !== 'POST') {
@@ -121,6 +167,7 @@ WebApp.connectHandlers.use('/api/stop-container', async (req, res) => {
 
   try {
     const { containerId } = req.body;
+    const user = req.currentUser;
     
     if (!containerId) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -128,7 +175,7 @@ WebApp.connectHandlers.use('/api/stop-container', async (req, res) => {
       return;
     }
 
-    console.log(`Attempting to stop container: ${containerId}`);
+    console.log(`User ${user.username} attempting to stop container: ${containerId}`);
     
     // Get the container instance
     const container = docker.getContainer(containerId);
@@ -144,11 +191,11 @@ WebApp.connectHandlers.use('/api/stop-container', async (req, res) => {
 
     // Stop the container
     await container.stop({ t: 10 }); // 10 second timeout
-    console.log(`Container ${containerId} stopped successfully`);
+    console.log(`Container ${containerId} stopped by ${user.username}`);
 
     // Remove the container
     await container.remove();
-    console.log(`Container ${containerId} removed successfully`);
+    console.log(`Container ${containerId} removed by ${user.username}`);
 
     // Check if this container was part of an active SSH session and clean it up
     for (const [socketId, session] of terminalSessions) {
@@ -172,6 +219,17 @@ WebApp.connectHandlers.use('/api/stop-container', async (req, res) => {
         break;
       }
     }
+
+    // Log the action
+    await AuditLogs.insertAsync({
+      socketId: 'api-action',
+      username: user.username,
+      userId: user._id,
+      action: 'container_stopped',
+      containerId: containerId,
+      ip: req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+      timestamp: new Date()
+    });
 
     res.writeHead(200, { 
       'Content-Type': 'application/json',
@@ -205,6 +263,9 @@ WebApp.connectHandlers.use('/api/stop-container', async (req, res) => {
 // API endpoint to get active containers
 WebApp.connectHandlers.use('/api/active-containers', async (req, res) => {
   try {
+    const user = req.currentUser;
+    console.log(`User ${user.username} fetching active containers`);
+    
     const containers = await docker.listContainers({ all: false }); // running only
     const formatted = containers.map(c => ({
       id: c.Id,
@@ -237,20 +298,26 @@ WebApp.connectHandlers.use('/api/create-container', async (req, res) => {
   }
 
   try {
-    console.log('Creating new SSH container...');
+    const user = req.currentUser;
+    console.log(`User ${user.username} creating new SSH container...`);
     
     // Create container 
-    const containerName = `ssh-session-${Date.now()}`;
+    const containerName = `ssh-${user.username}-${Date.now()}`;
     const container = await docker.createContainer({
       Image: 'ssh-terminal',
       name: containerName,
       Tty: true,
       ExposedPorts: { '22/tcp': {} },
-      HostConfig: { PortBindings: { '22/tcp': [{}] } }
+      HostConfig: { PortBindings: { '22/tcp': [{}] } },
+      Labels: {
+        'created-by': user.username,
+        'user-id': user._id,
+        'created-at': new Date().toISOString()
+      }
     });
 
     await container.start();
-    console.log(`Container ${containerName} created and started`);
+    console.log(`Container ${containerName} created and started by ${user.username}`);
     
     // Wait a moment for the container to fully start
     await new Promise(r => setTimeout(r, 500));
@@ -271,10 +338,23 @@ WebApp.connectHandlers.use('/api/create-container', async (req, res) => {
       image: 'ssh-terminal',
       status: 'Up',
       state: 'running',
-      created: new Date().toISOString()
+      created: new Date().toISOString(),
+      createdBy: user.username
     };
 
-    console.log(`Container created successfully: ${containerName} on port ${containerInfo.port}`);
+    // Log the action
+    await AuditLogs.insertAsync({
+      socketId: 'api-action',
+      username: user.username,
+      userId: user._id,
+      action: 'container_created',
+      containerId: container.id,
+      containerName: containerName,
+      ip: req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+      timestamp: new Date()
+    });
+
+    console.log(`Container created successfully by ${user.username}: ${containerName} on port ${containerInfo.port}`);
 
     res.writeHead(200, { 
       'Content-Type': 'application/json',
@@ -298,12 +378,23 @@ WebApp.connectHandlers.use('/api/create-container', async (req, res) => {
 });
 
 Meteor.startup(() => {
-  // API endpoint for audit logs
+  // API endpoint for audit logs (with authentication)
+  WebApp.connectHandlers.use('/api/audit-logs', requireAuth);
   WebApp.connectHandlers.use('/api/audit-logs', async (req, res) => {
     try {
+      const user = req.currentUser;
+      
+      // Only admins can access audit logs
+      if (user.role !== 'admin') {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Access denied. Admin privileges required.' }));
+        return;
+      }
+
       const logs = await AuditLogs.find({}, {
         projection: { _id: 0 },
-        sort: { connectedAt: -1 }
+        sort: { timestamp: -1 },
+        limit: 1000 // Limit to last 1000 entries
       }).fetch();
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -314,27 +405,32 @@ Meteor.startup(() => {
     }
   });
 
-  // Initialize Socket.IO
+  // Initialize Socket.IO with authentication
   io = new Server(WebApp.httpServer, {
     cors: { origin: '*', methods: ['GET', 'POST'] }
   });
 
-  // Socket.IO connection handling
+  // Apply authentication middleware to Socket.IO
+  io.use(authenticateSocket);
+
+  // Socket.IO connection handling with authentication
   io.on('connection', (socket) => {
-    console.log(`Client connected: ${socket.id}`);
+    const user = socket.currentUser;
+    console.log(`Authenticated client connected: ${socket.id} (User: ${user.username}, Role: ${user.role})`);
+    
     let sessionLog = [];
 
-    // UPDATED: Enhanced startSession handler with port validation (timer removed)
+    // Enhanced startSession handler with authentication context
     socket.on('startSession', async (credentials) => {
       const ip = socket.handshake.address || socket.conn.remoteAddress || 'unknown';
+      const userInfo = credentials.userInfo || socket.userInfo;
 
-      // UPDATED: Validate port input
+      // Enhanced validation with user context
       if (!credentials.port || isNaN(credentials.port) || credentials.port < 1 || credentials.port > 65535) {
         socket.emit('output', '\r\n\x1b[31mError: Invalid port number. Please enter a valid port (1-65535)\x1b[0m\r\n');
         return;
       }
 
-      // Validate other required fields
       if (!credentials.host || !credentials.host.trim()) {
         socket.emit('output', '\r\n\x1b[31mError: Host is required\x1b[0m\r\n');
         return;

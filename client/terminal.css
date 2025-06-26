@@ -2913,3 +2913,259 @@ body {
     padding: 3px;
   }
 }
+
+/* User Menu Styles - Add this to client/terminal.css */
+
+/* Page Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  margin-bottom: 20px;
+}
+
+.page-header h1 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+/* User Menu */
+.user-menu {
+  position: relative;
+}
+
+.user-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.user-menu-trigger:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.user-avatar.large {
+  width: 48px;
+  height: 48px;
+  font-size: 18px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  line-height: 1.2;
+}
+
+.user-role {
+  font-size: 12px;
+  color: #6c757d;
+  line-height: 1.2;
+}
+
+.dropdown-arrow {
+  color: #6c757d;
+  transition: transform 0.3s ease;
+}
+
+.dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* User Menu Dropdown */
+.user-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e9ecef;
+  min-width: 280px;
+  z-index: 1000;
+  animation: dropdownSlide 0.2s ease-out;
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-menu-header {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  border-radius: 12px 12px 0 0;
+}
+
+.user-details {
+  flex: 1;
+}
+
+.user-full-name {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  line-height: 1.2;
+}
+
+.user-email {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #6c757d;
+  line-height: 1.2;
+}
+
+.user-role-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.user-menu-divider {
+  height: 1px;
+  background: #e9ecef;
+  margin: 0;
+}
+
+.user-menu-items {
+  padding: 8px 0;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 14px;
+  color: #495057;
+}
+
+.user-menu-item:hover {
+  background: #f8f9fa;
+}
+
+.user-menu-item.logout {
+  color: #e74c3c;
+}
+
+.user-menu-item.logout:hover {
+  background: #fff5f5;
+}
+
+.user-menu-item svg {
+  color: #6c757d;
+  flex-shrink: 0;
+}
+
+.user-menu-item.logout svg {
+  color: #e74c3c;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .user-menu-trigger {
+    padding: 6px 12px;
+    gap: 8px;
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .user-name {
+    font-size: 13px;
+  }
+
+  .user-role {
+    font-size: 11px;
+  }
+
+  .user-menu-dropdown {
+    min-width: 260px;
+    right: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    padding: 0 10px;
+  }
+
+  .user-info {
+    display: none;
+  }
+
+  .user-menu-dropdown {
+    min-width: 240px;
+    margin-top: 4px;
+  }
+
+  .user-menu-header {
+    padding: 16px;
+  }
+
+  .user-menu-item {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
