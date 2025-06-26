@@ -1,11 +1,131 @@
 import React, { useEffect, useState, useRef } from 'react';
 
+// Import the new modal component
+const ContainerConnectionModal = ({ 
+  isOpen, 
+  onClose, 
+  containerInfo, 
+  onConnect 
+}) => {
+  const [password, setPassword] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const handleConnect = async () => {
+    if (!password.trim()) {
+      alert('Please enter a password');
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      await onConnect({
+        host: containerInfo.host,
+        port: containerInfo.port,
+        username: 'root',
+        password: password,
+        name: containerInfo.name
+      });
+      onClose();
+    } catch (error) {
+      console.error('Connection failed:', error);
+      alert('Connection failed. Please check your password and try again.');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !isConnecting) {
+      handleConnect();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3>🔌 Connect to Container</h3>
+          <button 
+            onClick={onClose} 
+            className="modal-close"
+            disabled={isConnecting}
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div className="modal-body">
+          <div className="connection-details">
+            <h4>Connection Details</h4>
+            <p><strong>Container:</strong> {containerInfo?.name}</p>
+            <p><strong>Host:</strong> {containerInfo?.host}</p>
+            <p><strong>Port:</strong> {containerInfo?.port}</p>
+            <p><strong>Username:</strong> root</p>
+          </div>
+          
+          <div className="password-input">
+            <label htmlFor="container-password">Password *</label>
+            <input
+              id="container-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Enter container password"
+              disabled={isConnecting}
+              autoFocus
+            />
+          </div>
+        </div>
+        
+        <div className="modal-footer">
+          <button 
+            onClick={onClose}
+            className="modal-btn cancel-btn"
+            disabled={isConnecting}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleConnect}
+            className="modal-btn connect-btn"
+            disabled={isConnecting || !password.trim()}
+          >
+            {isConnecting ? (
+              <>
+                <div style={{
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid #ffffff40',
+                  borderTop: '2px solid #ffffff',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  marginRight: '8px'
+                }} />
+                Connecting...
+              </>
+            ) : (
+              '🚀 Connect'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ActiveContainersPanel = ({ onConnectToContainer }) => {
   const [containers, setContainers] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
-  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'favorites'
+  const [activeTab, setActiveTab] = useState('active');
   const fileInputRef = useRef(null);
+  
+  // NEW: Modal state
+  const [showConnectionModal, setShowConnectionModal] = useState(false);
+  const [selectedContainer, setSelectedContainer] = useState(null);
 
   useEffect(() => {
     // Load favorites from localStorage on component mount
@@ -15,7 +135,6 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
         setFavorites(JSON.parse(savedFavorites));
       } catch (error) {
         console.error('Error parsing saved favorites:', error);
-        // Reset if corrupted
         localStorage.removeItem('favorite-containers');
       }
     }
@@ -83,14 +202,11 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
 
       if (response.ok) {
         console.log(`Container ${containerName} stopped successfully`);
-        // Remove the container from the list immediately for better UX
         setContainers(prevContainers => 
           prevContainers.filter(container => 
             (container.id || container.Id) !== containerId
           )
         );
-        
-        // Also remove from favorites if present
         removeFavorite(containerId);
       } else {
         const error = await response.json();
@@ -107,9 +223,21 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Confirm before stopping
     if (window.confirm(`Are you sure you want to stop container "${containerName}"?`)) {
       stopContainer(containerId, containerName);
+    }
+  };
+
+  // MODIFIED: Show modal instead of direct connection
+  const handleContainerConnect = (containerInfo) => {
+    setSelectedContainer(containerInfo);
+    setShowConnectionModal(true);
+  };
+
+  // NEW: Handle modal connection
+  const handleModalConnect = async (connectionInfo) => {
+    if (onConnectToContainer) {
+      onConnectToContainer(connectionInfo);
     }
   };
 
@@ -117,7 +245,6 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
   const toggleFavorite = (container) => {
     const containerId = container.id || container.Id;
     
-    // Check if already in favorites
     if (favorites.some(fav => (fav.id || fav.Id) === containerId)) {
       removeFavorite(containerId);
     } else {
@@ -125,26 +252,21 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
     }
   };
 
-  // Add container to favorites
   const addToFavorites = (container) => {
-    // Make a copy to avoid modifying the original container object
     const containerCopy = { ...container, addedToFavoritesAt: new Date().toISOString() };
     setFavorites(prev => [...prev, containerCopy]);
   };
 
-  // Remove container from favorites
   const removeFavorite = (containerId) => {
     setFavorites(prev => 
       prev.filter(fav => (fav.id || fav.Id) !== containerId)
     );
   };
 
-  // Check if a container is in favorites
   const isFavorite = (containerId) => {
     return favorites.some(fav => (fav.id || fav.Id) === containerId);
   };
 
-  // Import Dockerfile functionality
   const handleImportClick = () => {
     fileInputRef.current.click();
   };
@@ -167,7 +289,6 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
         const result = await response.json();
         console.log('Dockerfile imported successfully:', result);
         
-        // Refresh the containers list
         const res = await fetch('/api/active-containers');
         const data = await res.json();
         setContainers(data);
@@ -181,23 +302,18 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
       alert(`Error importing Dockerfile: ${error.message}`);
     } finally {
       setIsCreating(false);
-      // Reset file input
       e.target.value = '';
     }
   };
 
-  // Helper function to get the public port
   const getPublicPort = (container) => {
     try {
-      // Handle the raw Docker API response format
       if (container.Ports && Array.isArray(container.Ports) && container.Ports.length > 0) {
-        // Look for the first port with PublicPort
         const portWithPublic = container.Ports.find(port => port.PublicPort);
         if (portWithPublic) {
           return portWithPublic.PublicPort;
         }
       }
-      
       return 'N/A';
     } catch (error) {
       console.error('Error getting port:', error);
@@ -205,14 +321,10 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
     }
   };
 
-  // Get containers to display based on active tab
   const getDisplayedContainers = () => {
     if (activeTab === 'favorites') {
-      // For favorites, we also check if they still exist in the active containers list
-      // This gives a "real-time" view of favorite containers
       return favorites.filter(fav => {
         const favId = fav.id || fav.Id;
-        // Either the container is still active, or we keep it but mark it as inactive
         const isStillActive = containers.some(c => (c.id || c.Id) === favId);
         return isStillActive;
       });
@@ -225,7 +337,6 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
       await navigator.clipboard.writeText(port.toString());
       alert(`Port ${port} copied to clipboard!\nUse this port in the SSH connection form.`);
     } catch (err) {
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = port.toString();
       document.body.appendChild(textArea);
@@ -240,6 +351,14 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
 
   return (
     <div className="active-containers-content">
+      {/* Connection Modal */}
+      <ContainerConnectionModal
+        isOpen={showConnectionModal}
+        onClose={() => setShowConnectionModal(false)}
+        containerInfo={selectedContainer}
+        onConnect={handleModalConnect}
+      />
+
       {/* Header Section with Tabs */}
       <div className="containers-header">
         <div className="header-title">
@@ -265,7 +384,6 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
           </div>
         </div>
         <div className="container-actions-header">
-          {/* Import Dockerfile Button */}
           <button
             onClick={handleImportClick}
             disabled={isCreating}
@@ -274,7 +392,6 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
           >
             📥
           </button>
-          {/* Hidden file input for Dockerfile import */}
           <input
             type="file"
             ref={fileInputRef}
@@ -282,7 +399,6 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
             style={{ display: 'none' }}
             accept=".dockerfile,.Dockerfile,Dockerfile,text/plain"
           />
-          {/* Create Container Button */}
           <button
             onClick={createContainer}
             disabled={isCreating}
@@ -328,7 +444,6 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
                 key={containerId}
                 className="container-card"
               >
-                {/* Container Header */}
                 <div className="container-card-header">
                   <div className="container-name">
                     <span className="name-text">{name}</span>
@@ -352,7 +467,6 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
                   </div>
                 </div>
 
-                {/* Container Info */}
                 <div className="container-info">
                   <div className="info-row">
                     <span className="info-label">Image:</span>
@@ -382,24 +496,16 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
                   </div>
                 </div>
 
-                {/* Container Actions */}
+                {/* MODIFIED: Updated connect button */}
                 <div className="container-actions">
                   <button 
                     className="action-btn connect-btn" 
-                    onClick={() => {
-                      // If the callback is provided, use it to create a pre-filled terminal
-                      if (onConnectToContainer) {
-                        onConnectToContainer({
-                          id: containerId,
-                          name: name,
-                          port: publicPort,
-                          host: 'localhost'
-                        });
-                      } else {
-                        // Fallback to copying port
-                        copyPortToClipboard(publicPort, name);
-                      }
-                    }}
+                    onClick={() => handleContainerConnect({
+                      id: containerId,
+                      name: name,
+                      port: publicPort,
+                      host: 'localhost'
+                    })}
                     title={`Connect to ${name} on port ${publicPort}`}
                     style={{ width: '100%' }}
                   >
@@ -411,6 +517,13 @@ const ActiveContainersPanel = ({ onConnectToContainer }) => {
           })
         )}
       </div>
+
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };

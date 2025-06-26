@@ -1,7 +1,7 @@
 import { Meteor } from 'meteor/meteor';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import TerminalComponent from './TerminalComponent';
+import { App } from '../imports/ui/App';
 import './main.css';
 import './terminal.css';
 
@@ -18,7 +18,7 @@ Meteor.startup(() => {
     // Render our app into the root
     root.render(
       <React.StrictMode>
-        <TerminalComponent />
+        <App />
       </React.StrictMode>
     );
   } else {
