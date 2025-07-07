@@ -7,6 +7,9 @@ const ServiceSelectionPage = ({ onServiceSelect }) => {
         <div className="header-section">
           <h1 className="main-title">Choose a Service</h1>
           <p className="subtitle">Select the service you want to use</p>
+          <button onClick={() => onServiceSelect('calculator')}>
+           Calculator Service
+          </button>
         </div>
         
         <div className="services-grid">

@@ -112,6 +112,8 @@ const TerminalComponent = ({ onBack }) => {
 
   return (
     <div className={`terminal-page ${getPageClass()}`}>
+
+   
       {/* Header - Hidden in fullscreen */}
       {!isTerminalFullscreen && (
         <div className="page-header">

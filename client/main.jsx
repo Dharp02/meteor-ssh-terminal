@@ -6,6 +6,8 @@ import './main.css';
 import './terminal.css';
 
 
+
+
 // Wait for the DOM to be ready
 Meteor.startup(() => {
   // Get the target DOM element
@@ -14,6 +16,7 @@ Meteor.startup(() => {
   if (container) {
     // Create a React root
     const root = createRoot(container);
+    
     
     // Render our app into the root
     root.render(

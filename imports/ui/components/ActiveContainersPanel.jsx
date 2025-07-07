@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 
+
 // Import the new modal component
 const ContainerConnectionModal = ({ 
   isOpen, 
@@ -63,6 +64,7 @@ const ContainerConnectionModal = ({
             <p><strong>Host:</strong> {containerInfo?.host}</p>
             <p><strong>Port:</strong> {containerInfo?.port}</p>
             <p><strong>Username:</strong> root</p>
+            
           </div>
           
           <div className="password-input">
