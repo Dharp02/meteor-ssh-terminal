@@ -10,14 +10,15 @@ const VMTerminal = ({ onBack }) => {
   const fitAddon = useRef(new FitAddon());
   const socket = useRef(null);
   const isInitialized = useRef(false);
+  const inputHandlerRef = useRef(null);
   
   const [terminals, setTerminals] = useState([{ id: 1, title: 'Terminal 1' }]);
   const [activeTab, setActiveTab] = useState(1);
   
   const [serverInfo, setServerInfo] = useState({
-    host: '',
+    host: 'localhost',
     port: 22,
-    username: '',
+    username: 'root',
     password: '',
     useKeyAuth: false,
     privateKey: '',
@@ -28,8 +29,41 @@ const VMTerminal = ({ onBack }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [logData, setLogData] = useState('');
+  
+  // Use ref for immediate access to connection state
+  const isConnectedRef = useRef(false);
 
-  // Initialize terminal with proper error handling
+  // Setup terminal input handler
+  const setupInputHandler = () => {
+    if (!term.current || !socket.current) {
+      console.log('Cannot setup input handler - missing terminal or socket');
+      return;
+    }
+
+    // Remove existing handler if any
+    if (inputHandlerRef.current) {
+      // XTerm doesn't have an 'off' method, we just replace the handler
+      inputHandlerRef.current = null;
+    }
+
+    // Create new input handler
+    inputHandlerRef.current = (data) => {
+      console.log('Terminal input received:', data, 'Connected:', isConnectedRef.current);
+      if (socket.current && socket.current.connected && isConnectedRef.current) {
+        console.log('Sending input to SSH:', data);
+        socket.current.emit('input', data);
+        setLogData(prev => prev + data);
+      } else {
+        console.log('Input ignored - not connected. Socket connected:', socket.current?.connected, 'SSH connected:', isConnectedRef.current);
+      }
+    };
+
+    // Attach input handler to terminal
+    term.current.onData(inputHandlerRef.current);
+    console.log('Terminal input handler setup complete');
+  };
+
+  // Initialize terminal
   const initializeTerminal = () => {
     if (isInitialized.current || !terminalRef.current) return;
 
@@ -38,10 +72,10 @@ const VMTerminal = ({ onBack }) => {
       term.current = new Terminal({
         fontSize: 14,
         cursorBlink: true,
-        disableStdin: false,
+        disableStdin: false, // Ensure input is enabled
         scrollback: 5000,
         theme: { 
-          background: '#000', 
+          background: '#1e1e1e', 
           foreground: '#ffffff',
           cursor: '#ffffff',
           selection: '#4d4d4d'
@@ -70,24 +104,37 @@ const VMTerminal = ({ onBack }) => {
       // Mark as initialized
       isInitialized.current = true;
 
+      // Setup initial input handler
+      setupInputHandler();
+
       // Fit terminal after a short delay to ensure DOM is ready
       setTimeout(() => {
         try {
-          if (fitAddon.current && term.current) {
-            fitAddon.current.fit();
+          if (fitAddon.current && term.current && terminalRef.current) {
+            // Check if the terminal container has dimensions
+            const rect = terminalRef.current.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              fitAddon.current.fit();
+              term.current.focus(); // Refocus after fit
+              console.log('Terminal fitted successfully');
+            } else {
+              console.warn('Terminal container has no dimensions, retrying...');
+              // Retry after another delay
+              setTimeout(() => {
+                try {
+                  if (fitAddon.current && term.current) {
+                    fitAddon.current.fit();
+                    term.current.focus();
+                    console.log('Terminal fitted on retry');
+                  }
+                } catch (retryError) {
+                  console.warn('Retry fit also failed:', retryError);
+                }
+              }, 1000);
+            }
           }
         } catch (fitError) {
-          console.warn('Initial fit failed, will retry:', fitError);
-          // Retry fit after another delay
-          setTimeout(() => {
-            try {
-              if (fitAddon.current) {
-                fitAddon.current.fit();
-              }
-            } catch (retryError) {
-              console.warn('Retry fit also failed:', retryError);
-            }
-          }, 1000);
+          console.warn('Initial fit failed:', fitError);
         }
       }, 200);
 
@@ -98,7 +145,7 @@ const VMTerminal = ({ onBack }) => {
   };
 
   useEffect(() => {
-    // Initialize terminal
+    // Initialize terminal first
     initializeTerminal();
 
     // Handle window resize with debouncing
@@ -107,8 +154,12 @@ const VMTerminal = ({ onBack }) => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
         try {
-          if (fitAddon.current && term.current && isInitialized.current) {
-            fitAddon.current.fit();
+          if (fitAddon.current && term.current && isInitialized.current && terminalRef.current) {
+            const rect = terminalRef.current.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              fitAddon.current.fit();
+              term.current.focus(); // Refocus after resize
+            }
           }
         } catch (error) {
           console.warn('Resize fit failed:', error);
@@ -143,11 +194,21 @@ const VMTerminal = ({ onBack }) => {
 
         socket.current.on('sshConnected', (data) => {
           console.log('SSH Connected received', data);
+          console.log('Setting isConnected to true');
           setConnectionStatus('SSH Connected');
           setIsConnected(true);
+          isConnectedRef.current = true; // Update ref immediately
           setIsConnecting(false);
+          
           if (term.current && isInitialized.current) {
             term.current.writeln('\r\n\x1b[32mSSH Connection established\x1b[0m');
+            // Re-setup input handler after SSH connection
+            setTimeout(() => {
+              console.log('Re-setting up input handler with connection state');
+              setupInputHandler();
+              term.current.focus(); // Ensure terminal has focus
+              console.log('Terminal ready for input after SSH connection');
+            }, 200);
           }
         });
 
@@ -155,6 +216,7 @@ const VMTerminal = ({ onBack }) => {
           console.log('Disconnected from server');
           setConnectionStatus('Disconnected');
           setIsConnected(false);
+          isConnectedRef.current = false; // Update ref immediately
           setIsConnecting(false);
           if (term.current && isInitialized.current) {
             term.current.writeln('\r\n\x1b[31m✗ Disconnected from server\x1b[0m');
@@ -169,16 +231,6 @@ const VMTerminal = ({ onBack }) => {
             term.current.writeln(`\r\n\x1b[31mConnection error: ${error.message || error}\x1b[0m\r\n`);
           }
         });
-
-        // Handle terminal input
-        if (term.current) {
-          term.current.onData(data => {
-            if (socket.current && isConnected) {
-              socket.current.emit('input', data);
-              setLogData(prev => prev + data);
-            }
-          });
-        }
 
       } catch (socketError) {
         console.error('Socket initialization error:', socketError);
@@ -204,6 +256,15 @@ const VMTerminal = ({ onBack }) => {
       isInitialized.current = false;
     };
   }, []); // Empty dependency array for mount only
+
+  // Add click handler to ensure terminal focus
+  const handleTerminalClick = () => {
+    console.log('Terminal clicked, focusing...');
+    if (term.current && isInitialized.current) {
+      term.current.focus();
+      console.log('Terminal focused, ready for input');
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -298,9 +359,6 @@ const VMTerminal = ({ onBack }) => {
     socket.current.emit('startSession', connectionData);
 
     // Clear timeout when connection succeeds or fails
-    const originalConnectHandler = socket.current.listeners('sshConnected')[0];
-    const originalErrorHandler = socket.current.listeners('error')[0];
-    
     socket.current.once('sshConnected', () => {
       clearTimeout(connectionTimeout);
     });
@@ -315,6 +373,7 @@ const VMTerminal = ({ onBack }) => {
       socket.current.emit('endSession');
       setConnectionStatus('Disconnected');
       setIsConnected(false);
+      isConnectedRef.current = false; // Update ref immediately
       setIsConnecting(false);
       
       if (term.current && isInitialized.current) {
@@ -327,6 +386,7 @@ const VMTerminal = ({ onBack }) => {
     if (term.current && isInitialized.current) {
       term.current.clear();
       setLogData('');
+      term.current.focus(); // Refocus after clear
     }
   };
 
@@ -421,6 +481,9 @@ const VMTerminal = ({ onBack }) => {
 
       {/* Terminal Header with Connection Form */}
       <div className="terminal-header">
+        <div className="connection-status" style={{ color: getStatusColor() }}>
+          ● {connectionStatus}
+        </div>
         <input 
           type="text" 
           name="host" 
@@ -513,14 +576,10 @@ const VMTerminal = ({ onBack }) => {
       <div
         className="terminal-instance"
         ref={terminalRef}
+        onClick={handleTerminalClick}
+        style={{ cursor: 'text' }}
       />
 
-      <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };
